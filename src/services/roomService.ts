@@ -1,4 +1,3 @@
-
 import {
   collection,
   doc,
@@ -11,6 +10,46 @@ import {
 
 import { db } from "../firebase";
 import { GameRoom, Player } from "../types/game";
+
+// Menghapus properti undefined sebelum data dikirim ke Firestore.
+// Nilai undefined di dalam array ditolak agar urutan data tidak berubah diam-diam.
+const removeUndefined = (value: any, path = "data"): any => {
+  if (Array.isArray(value)) {
+    return value.map((item, index) => {
+      if (item === undefined) {
+        throw new Error(
+          `Data tidak valid: ${path}[${index}] bernilai undefined.`
+        );
+      }
+
+      return removeUndefined(item, `${path}[${index}]`);
+    });
+  }
+
+  if (
+    value !== null &&
+    typeof value === "object" &&
+    Object.getPrototypeOf(value) === Object.prototype
+  ) {
+    return Object.fromEntries(
+      Object.entries(value)
+        .filter(([key, item]) => {
+          if (item === undefined) {
+            console.warn(`Properti undefined dihapus: ${path}.${key}`);
+            return false;
+          }
+
+          return true;
+        })
+        .map(([key, item]) => [
+          key,
+          removeUndefined(item, `${path}.${key}`),
+        ])
+    );
+  }
+
+  return value;
+};
 
 // Membuat PIN room 6 digit
 export const generateRoomCode = (): string => {
@@ -35,12 +74,18 @@ export const createRoom = async (room: GameRoom) => {
       throw new Error("PIN room sudah digunakan. Silakan buat PIN baru.");
     }
 
-    transaction.set(roomRef, {
-      ...roomData,
-      code,
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    transaction.set(
+      roomRef,
+      removeUndefined(
+        {
+          ...roomData,
+          code,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        "room"
+      )
+    );
 
     if (players?.length) {
       players.forEach((player) => {
@@ -52,11 +97,17 @@ export const createRoom = async (room: GameRoom) => {
           player.id
         );
 
-        transaction.set(playerRef, {
-          ...player,
-          joinedAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
-        });
+        transaction.set(
+          playerRef,
+          removeUndefined(
+            {
+              ...player,
+              joinedAt: serverTimestamp(),
+              updatedAt: serverTimestamp(),
+            },
+            `room.players.${player.id}`
+          )
+        );
       });
     }
   });
@@ -119,11 +170,17 @@ export const joinRoom = async (
       throw new Error("Kamu sudah bergabung di room ini.");
     }
 
-    transaction.set(playerRef, {
-      ...player,
-      joinedAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
-    });
+    transaction.set(
+      playerRef,
+      removeUndefined(
+        {
+          ...player,
+          joinedAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        },
+        `room.players.${player.id}`
+      )
+    );
   });
 };
 
@@ -134,10 +191,16 @@ export const updateRoom = async (
 ) => {
   const roomRef = doc(db, "rooms", roomCode.trim());
 
-  await updateDoc(roomRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
+  await updateDoc(
+    roomRef,
+    removeUndefined(
+      {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      },
+      "room.update"
+    )
+  );
 };
 
 // Memperbarui data satu pemain
@@ -154,10 +217,16 @@ export const updatePlayer = async (
     playerId
   );
 
-  await updateDoc(playerRef, {
-    ...updates,
-    updatedAt: serverTimestamp(),
-  });
+  await updateDoc(
+    playerRef,
+    removeUndefined(
+      {
+        ...updates,
+        updatedAt: serverTimestamp(),
+      },
+      `room.players.${playerId}.update`
+    )
+  );
 };
 
 // Mendengarkan perubahan room secara realtime
