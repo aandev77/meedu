@@ -55,7 +55,22 @@ const handleGoogleLogin = async () => {
       }),
     });
 
-    const data = await response.json();
+    const responseText = await response.text();
+
+let data: any;
+
+try {
+  data = JSON.parse(responseText);
+} catch {
+  console.error('Respons API bukan JSON:', responseText);
+  throw new Error(
+    `Server mengembalikan respons tidak valid (${response.status}). Periksa log Vercel.`
+  );
+}
+
+if (!response.ok) {
+  throw new Error(data.error || 'Gagal menyimpan pilihan role.');
+}
 
     if (!response.ok) {
       throw new Error(
