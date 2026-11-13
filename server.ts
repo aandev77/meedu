@@ -80,7 +80,6 @@ const verifyTeacher = async (
   }
 };
 
-
 // Mengambil profil dan role pengguna
 app.get(
   '/api/auth/profile',
@@ -95,6 +94,8 @@ app.get(
 
       const userDoc = await userRef.get();
 
+      // Default hanya untuk respons, bukan langsung disimpan ke Firestore.
+      // Dengan begitu, pilihan Guru tidak tertimpa oleh role default Murid.
       let role: 'teacher' | 'student' = 'student';
 
       if (userDoc.exists) {
@@ -103,15 +104,6 @@ app.get(
         if (savedRole === 'teacher' || savedRole === 'student') {
           role = savedRole;
         }
-      } else {
-        // Pengguna baru secara default menjadi Murid
-        await userRef.set({
-          uid: user.uid,
-          email: user.email,
-          role: 'student',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
       }
 
       return res.json({
@@ -132,7 +124,6 @@ app.get(
     }
   }
 );
-
 
 // Menyimpan atau mengubah role pengguna
 app.post(

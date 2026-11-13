@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { signInWithPopup } from 'firebase/auth';
+import { signInWithPopup, signOut } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import {
   GraduationCap,
@@ -31,69 +31,103 @@ export const LoginView: React.FC = () => {
     'student'
   );
 
-  // Google Login
-  const handleGoogleLogin = async () => {
-    if (loading) return;
+const handleGoogleLogin = async () => {
+  if (loading) return;
 
-    try {
-      setLoading(true);
+  try {
+    setLoading(true);
 
-      // Simpan pilihan role sebelum proses login Firebase
-localStorage.setItem('meedu_selected_role', selectedRole);
+    // Login menggunakan Google
+    const result = await signInWithPopup(auth, googleProvider);
 
-const result = await signInWithPopup(auth, googleProvider);
+    // Ambil Firebase ID Token
+    const token = await result.user.getIdToken();
+
+    // Simpan role pilihan ke server / Firestore
+    const response = await fetch('/api/auth/role', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        role: selectedRole,
+      }),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(
+        data.error || 'Gagal menyimpan pilihan role.'
+      );
+    }
+
+    // Beri tahu App.tsx agar mengambil ulang role terbaru
+    window.dispatchEvent(new Event('meedu-role-updated'));
+
+    Toast.fire({
+      icon: 'success',
+      title: 'Login berhasil!',
+      text: `Selamat datang di Meedu Quiz sebagai ${
+        selectedRole === 'teacher' ? 'Guru' : 'Murid'
+      }.`,
+    });
+  } catch (err: any) {
+    console.error('Google login error:', err);
+
+    // Jika login Firebase berhasil tetapi penyimpanan role gagal,
+    // keluarkan pengguna agar tidak masuk dengan role yang keliru.
+    if (auth.currentUser) {
+      try {
+        await signOut(auth);
+      } catch (signOutError) {
+        console.error('Gagal logout:', signOutError);
+      }
+    }
+
+    if (err.code === 'auth/popup-closed-by-user') {
+      Toast.fire({
+        icon: 'info',
+        title: 'Login dibatalkan',
+      });
+    } else {
+      let message =
+        err.message ||
+        'Terjadi kesalahan. Silakan coba beberapa saat lagi.';
+
+      switch (err.code) {
+        case 'auth/popup-blocked':
+          message =
+            'Popup login diblokir browser. Izinkan popup untuk melanjutkan.';
+          break;
+
+        case 'auth/network-request-failed':
+          message =
+            'Koneksi internet bermasalah. Periksa jaringan kamu.';
+          break;
+
+        case 'auth/unauthorized-domain':
+          message =
+            'Domain website belum diizinkan untuk login.';
+          break;
+
+        case 'auth/account-exists-with-different-credential':
+          message =
+            'Email sudah terdaftar menggunakan metode login lain.';
+          break;
+      }
 
       Toast.fire({
-        icon: 'success',
-        title: 'Login berhasil!',
-        text: `Selamat datang di Meedu Quiz sebagai ${
-          selectedRole === 'teacher' ? 'Guru' : 'Murid'
-        }.`,
+        icon: 'error',
+        title: 'Login gagal!',
+        text: message,
       });
-    } catch (err: any) {
-      console.error('Google login error:', err.code, err.message);
-
-      if (err.code === 'auth/popup-closed-by-user') {
-        Toast.fire({
-          icon: 'info',
-          title: 'Login dibatalkan',
-        });
-      } else {
-        let message = err.message ||
-          'Terjadi kesalahan. Silakan coba beberapa saat lagi.';
-
-        switch (err.code) {
-          case 'auth/popup-blocked':
-            message =
-              'Popup login diblokir browser. Izinkan popup untuk melanjutkan.';
-            break;
-
-          case 'auth/network-request-failed':
-            message =
-              'Koneksi internet bermasalah. Periksa jaringan kamu.';
-            break;
-
-          case 'auth/unauthorized-domain':
-            message =
-              'Domain website belum diizinkan untuk login.';
-            break;
-
-          case 'auth/account-exists-with-different-credential':
-            message =
-              'Email sudah terdaftar menggunakan metode login lain.';
-            break;
-        }
-
-        Toast.fire({
-          icon: 'error',
-          title: 'Login gagal!',
-          text: message,
-        });
-      }
-    } finally {
-      setLoading(false);
     }
-  };
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <main className="min-h-screen bg-[#fff8fb] flex items-center justify-center p-3 sm:p-6 lg:p-8">

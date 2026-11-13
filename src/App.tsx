@@ -141,45 +141,92 @@ export default function App() {
 
   const [pendingDeletePackId, setPendingDeletePackId] = useState<string | null>(null);
     // Memverifikasi role pengguna melalui server
-  const verifyUserRole = async (firebaseUser: User) => {
-    try {
-      const token = await firebaseUser.getIdToken();
+const roleRequestIdRef = useRef(0);
 
-      const response = await fetch('/api/auth/profile', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+// Memverifikasi role pengguna melalui server
+const verifyUserRole = async (firebaseUser: User) => {
+  const requestId = ++roleRequestIdRef.current;
 
-      if (!response.ok) {
-        throw new Error('Gagal memverifikasi role pengguna.');
-      }
+  try {
+    const token = await firebaseUser.getIdToken();
 
-      const result = await response.json();
+    const response = await fetch('/api/auth/profile', {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-      setServerRole(result.user.role === 'teacher' ? 'teacher' : 'student');
-    } catch (error) {
-      console.error('Role verification error:', error);
+    if (!response.ok) {
+      throw new Error('Gagal memverifikasi role pengguna.');
+    }
+
+    const result = await response.json();
+
+    if (
+      requestId !== roleRequestIdRef.current ||
+      auth.currentUser?.uid !== firebaseUser.uid
+    ) {
+      return;
+    }
+
+    if (
+      result.user?.role !== 'teacher' &&
+      result.user?.role !== 'student'
+    ) {
+      throw new Error('Role pengguna tidak valid.');
+    }
+
+    setServerRole(result.user.role);
+  } catch (error) {
+    console.error('Role verification error:', error);
+
+    if (
+      requestId === roleRequestIdRef.current &&
+      auth.currentUser?.uid === firebaseUser.uid
+    ) {
       setServerRole('student');
+    }
+  }
+};
+
+// Memantau status login Firebase dan perubahan role
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    setUser(firebaseUser);
+
+    if (firebaseUser) {
+      await verifyUserRole(firebaseUser);
+    } else {
+      roleRequestIdRef.current++;
+      setServerRole('student');
+    }
+
+    setAuthLoading(false);
+  });
+
+  // Dipanggil setelah LoginView berhasil menyimpan role ke server
+  const handleRoleUpdated = () => {
+    const currentUser = auth.currentUser;
+
+    if (currentUser) {
+      void verifyUserRole(currentUser);
     }
   };
 
-  // Memantau status login Firebase
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
+  window.addEventListener(
+    'meedu-role-updated',
+    handleRoleUpdated
+  );
 
-      if (firebaseUser) {
-        await verifyUserRole(firebaseUser);
-      } else {
-        setServerRole('student');
-      }
+  return () => {
+    unsubscribe();
 
-      setAuthLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, []);
+    window.removeEventListener(
+      'meedu-role-updated',
+      handleRoleUpdated
+    );
+  };
+}, []);
 
   // Langganan data room dan pemain dari Firestore
   useEffect(() => {
