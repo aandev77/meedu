@@ -125,10 +125,13 @@ export const getRoom = async (
 
   if (!snapshot.exists()) return null;
 
+  const data = snapshot.data() as GameRoom;
+
   return {
-    ...snapshot.data(),
+    ...data,
+    code,
     players: [],
-  } as GameRoom;
+  };
 };
 
 // Siswa bergabung ke room
@@ -234,19 +237,24 @@ export const subscribeRoom = (
   roomCode: string,
   callback: (room: GameRoom | null) => void
 ) => {
-  const roomRef = doc(db, "rooms", roomCode.trim());
+  const code = roomCode.trim();
+  const roomRef = doc(db, "rooms", code);
 
   return onSnapshot(
     roomRef,
     (snapshot) => {
-      callback(
-        snapshot.exists()
-          ? ({
-              ...snapshot.data(),
-              players: [],
-            } as GameRoom)
-          : null
-      );
+      if (!snapshot.exists()) {
+        callback(null);
+        return;
+      }
+
+      const data = snapshot.data() as GameRoom;
+
+      callback({
+        ...data,
+        code,
+        players: [],
+      });
     },
     (error) => {
       console.error("Room listener error:", error);
