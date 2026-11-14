@@ -1199,7 +1199,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   );
 
   return (
-    <div className="relative w-full h-[clamp(360px,calc(100dvh-150px),780px)] overflow-hidden rounded-2xl border-4 border-amber-900 bg-green-600">
+    <div className="relative w-full h-[min(780px,70vh)] min-h-[400px] overflow-hidden rounded-2xl border-4 border-amber-900 bg-green-600">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
