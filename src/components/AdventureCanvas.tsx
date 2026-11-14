@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { Trophy, Play } from 'lucide-react';
 import { Player } from '../types/game';
 import { drawAvatar } from '../game/avatarRenderer';
 import adventureMapUrl from '../assets/adventure-map.jpg';
@@ -1246,20 +1247,18 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         className={`block w-full h-full ${spectator ? 'cursor-grab active:cursor-grabbing touch-none' : 'cursor-crosshair'}`}
       />
 
-      {/* Tombol guru: pada HP menjadi kotak ringkas agar tidak menutupi peta. */}
+      {/* Tombol aksi guru: ikon saja, ukuran persegi dan konsisten. */}
       {(onShowScores || (onStartGame && !hideStartButton)) && (
-        <div className="absolute z-30 right-2 top-2 sm:right-4 sm:top-4 flex items-center gap-1.5 sm:gap-2">
+        <div className="absolute z-30 right-2 top-2 sm:right-4 sm:top-4 flex items-center gap-2">
           {onShowScores && (
             <button
               type="button"
               onClick={onShowScores}
               aria-label="Lihat Skor"
               title="Lihat Skor"
-              className="flex h-10 w-10 sm:h-9 sm:w-auto sm:px-4 flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-lg sm:rounded-2xl border-2 border-white bg-white !text-pink-600 text-[9px] sm:text-sm font-extrabold shadow-lg touch-manipulation active:scale-95"
+              className="group flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl border border-pink-200 bg-white text-pink-600 shadow-lg shadow-pink-900/15 transition-all hover:-translate-y-0.5 hover:bg-pink-50 hover:shadow-xl active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2"
             >
-              <span className="text-base sm:text-sm leading-none">🏆</span>
-              <span className="sm:hidden leading-none">Skor</span>
-              <span className="hidden sm:inline">Lihat Skor</span>
+              <Trophy className="h-5 w-5" strokeWidth={2.4} />
             </button>
           )}
           {onStartGame && !hideStartButton && (
@@ -1268,11 +1267,9 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
               onClick={onStartGame}
               aria-label="Mulai Game"
               title="Mulai Game"
-              className="flex h-10 w-10 sm:h-9 sm:w-auto sm:px-5 flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-lg sm:rounded-2xl border-2 border-white !bg-gradient-to-r from-pink-500 to-rose-500 !text-white text-[9px] sm:text-sm font-extrabold shadow-lg touch-manipulation active:scale-95"
+              className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-xl border border-white/80 bg-gradient-to-br from-pink-500 to-rose-600 text-white shadow-lg shadow-pink-900/25 transition-all hover:-translate-y-0.5 hover:from-pink-600 hover:to-rose-700 hover:shadow-xl active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-pink-500 focus-visible:ring-offset-2"
             >
-              <span className="text-base sm:text-sm leading-none">▶</span>
-              <span className="sm:hidden leading-none">Mulai</span>
-              <span className="hidden sm:inline">Mulai Game</span>
+              <Play className="h-5 w-5 fill-current" strokeWidth={2.2} />
             </button>
           )}
         </div>
