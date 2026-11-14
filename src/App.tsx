@@ -193,6 +193,7 @@ export default function App() {
   const [adventureAnswerHistory, setAdventureAnswerHistory] = useState<AdventureAnswerRecord[]>([]);
   // Podium khusus Adventure
   const [showAdventurePodium, setShowAdventurePodium] = useState(false);
+  const [showStudentScores, setShowStudentScores] = useState(false);
 
   const adventureTotalScore = Object.values(chestScores).reduce(
     (total, score) => total + score,
@@ -627,6 +628,35 @@ useEffect(() => {
       ? adventureQuestions[activeChest * 4 + activeQuestionIndex]
       : undefined;
 
+  // Simpan skor Adventure setiap peti selesai agar guru melihat perubahan secara real-time.
+  const saveAdventureChestScore = (chestIndex: number, chestScore: number) => {
+    const nextScores = { ...chestScores, [chestIndex]: chestScore };
+    const totalScore = Math.round(
+      Object.values(nextScores).reduce((total, value) => total + value, 0)
+    );
+
+    setChestScores(nextScores);
+    setCurrentRoom((previous) => {
+      if (!previous) return previous;
+      return {
+        ...previous,
+        players: previous.players.map((player) =>
+          player.id === activePlayerId
+            ? { ...player, score: totalScore }
+            : player
+        ),
+      };
+    });
+
+    if (currentRoom && !isLocalRoom) {
+      updatePlayer(currentRoom.code, activePlayerId, {
+        score: totalScore,
+      }).catch((error) => {
+        console.error('Gagal menyinkronkan skor Adventure:', error);
+      });
+    }
+  };
+
   // Menangani jawaban soal Adventure
   const handleAdventureAnswer = (answer: string | number) => {
     if (!activeAdventureQuestion || activeChest === null) return;
@@ -710,10 +740,7 @@ useEffect(() => {
         pointsPerChest - wrongAttempts * 5
       );
 
-      setChestScores((previous) => ({
-        ...previous,
-        [activeChest]: score,
-      }));
+      saveAdventureChestScore(activeChest, score);
 
       setChestCompleted((previous) =>
         previous.includes(activeChest)
@@ -736,10 +763,7 @@ useEffect(() => {
       nextWrongAttempts >= 4 ||
       activeQuestionIndex >= 3
     ) {
-      setChestScores((previous) => ({
-        ...previous,
-        [activeChest]: 0,
-      }));
+      saveAdventureChestScore(activeChest, 0);
 
       setChestCompleted((previous) =>
         previous.includes(activeChest)
@@ -758,10 +782,7 @@ useEffect(() => {
       adventureQuestions[activeChest * 4 + nextIndex];
 
     if (!nextQuestion) {
-      setChestScores((previous) => ({
-        ...previous,
-        [activeChest]: 0,
-      }));
+      saveAdventureChestScore(activeChest, 0);
 
       setChestCompleted((previous) =>
         previous.includes(activeChest)
@@ -815,6 +836,7 @@ useEffect(() => {
     setChestCompleted([]);
     setChestScores({});
     setShowAdventurePodium(false);
+    setShowStudentScores(false);
   };
 
   // Keluar dari room
@@ -1919,6 +1941,7 @@ useEffect(() => {
                 spectator={userRole === 'teacher' && !isMapTest}
                 gameStarted={currentRoom.stage !== 'waiting'}
                 onStartGame={isRoomHost ? handleStartGame : undefined}
+                onShowScores={isRoomHost ? () => setShowStudentScores(true) : undefined}
                 hideStartButton={currentRoom.stage !== 'waiting'}
               />
             ) : (
@@ -1955,6 +1978,56 @@ useEffect(() => {
                 />
               )}
           </div>
+
+          {/* LEADERBOARD KHUSUS GURU */}
+          {showStudentScores && isRoomHost && (
+            <div
+              className="fixed inset-0 z-[110] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm"
+              onMouseDown={(event) => {
+                if (event.target === event.currentTarget) setShowStudentScores(false);
+              }}
+            >
+              <section
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="student-scores-title"
+                className="w-full max-w-xl overflow-hidden rounded-2xl border border-pink-100 bg-white shadow-2xl"
+              >
+                <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+                  <div>
+                    <h2 id="student-scores-title" className="text-lg font-extrabold text-slate-800">Skor Siswa</h2>
+                    <p className="text-xs text-slate-500">Room {currentRoom.code} · diperbarui otomatis</p>
+                  </div>
+                  <button type="button" onClick={() => setShowStudentScores(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Tutup">
+                    <X className="h-5 w-5" />
+                  </button>
+                </header>
+                <div className="max-h-[65vh] overflow-y-auto p-4">
+                  {(() => {
+                    const students = currentRoom.players
+                      .filter((player) => !player.isHost && !player.isBot)
+                      .sort((a, b) => (b.score || 0) - (a.score || 0));
+                    return students.length === 0 ? (
+                      <p className="py-10 text-center text-sm text-slate-500">Belum ada siswa yang bergabung.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {students.map((student, index) => (
+                          <div key={student.id} className="flex items-center gap-3 rounded-xl border border-slate-100 bg-slate-50 px-3 py-3">
+                            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-pink-100 text-sm font-extrabold text-pink-700">{index + 1}</span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm font-bold text-slate-800">{student.name}</p>
+                              <p className="text-xs text-slate-500">{(student.score || 0) > 0 ? 'Sudah memperoleh skor' : 'Belum memperoleh skor'}</p>
+                            </div>
+                            <strong className="shrink-0 text-base font-extrabold tabular-nums text-pink-600">{Math.round(student.score || 0)} <span className="text-xs font-semibold text-slate-400">pts</span></strong>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </section>
+            </div>
+          )}
 
           {/* PODIUM MODAL */}
           {(currentRoom.stage === 'podium' ||

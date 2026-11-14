@@ -21,6 +21,8 @@ interface AdventureCanvasProps {
   onReachFinish?: () => void;
   /** Opsional: tombol "Mulai Game" di dalam peta (hanya tampil bila diisi, biasanya untuk host/guru). */
   onStartGame?: () => void;
+  /** Tombol leaderboard khusus guru. */
+  onShowScores?: () => void;
   /** Opsional: sembunyikan tombol mulai (mis. game sudah berjalan). */
   hideStartButton?: boolean;
   /** Mode guru: peta tampil penuh (tanpa zoom), tanpa kontrol gerak, dan tidak membuka peti. */
@@ -646,6 +648,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   chestCount,
   onReachFinish,
   onStartGame,
+  onShowScores,
   hideStartButton,
   spectator = false,
   gameStarted = true,
@@ -1199,28 +1202,35 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   );
 
   return (
-    <div
-      className={`relative w-full ${
-        spectator
-          ? 'h-[calc(100dvh-160px)] min-h-[400px]'
-          : 'h-[min(780px,70vh)] min-h-[400px]'
-      } overflow-hidden rounded-2xl border-4 border-amber-900 bg-green-600`}
-    >
+    <div className="relative w-full h-[min(780px,70vh)] min-h-[400px] overflow-hidden rounded-2xl border-4 border-amber-900 bg-green-600">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
         className={`block w-full h-full ${spectator ? 'cursor-default' : 'cursor-crosshair'}`}
       />
 
-      {/* Tombol mulai game (khusus host, di dalam peta, rata kanan) */}
-      {onStartGame && !hideStartButton && (
-        <button
-          type="button"
-          onClick={onStartGame}
-          className="absolute z-30 right-3 top-3 sm:right-4 sm:top-4 inline-flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl !bg-gradient-to-r from-pink-500 to-rose-500 px-3 sm:px-5 text-xs sm:text-sm font-extrabold !text-white whitespace-nowrap shadow-lg shadow-pink-500/30 border-2 border-white touch-manipulation select-none transition hover:from-pink-600 hover:to-rose-600 active:scale-95"
-        >
-        Mulai Game
-        </button>
+      {/* Tombol guru: Lihat Skor sejajar dengan Mulai Game. */}
+      {(onShowScores || (onStartGame && !hideStartButton)) && (
+        <div className="absolute z-30 right-3 top-3 sm:right-4 sm:top-4 flex items-center gap-2">
+          {onShowScores && (
+            <button
+              type="button"
+              onClick={onShowScores}
+              className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl sm:rounded-2xl !bg-white px-3 sm:px-4 text-xs sm:text-sm font-extrabold !text-pink-600 whitespace-nowrap shadow-lg border-2 border-pink-200 touch-manipulation select-none transition hover:!bg-pink-50 active:scale-95"
+            >
+              Lihat Skor
+            </button>
+          )}
+          {onStartGame && !hideStartButton && (
+            <button
+              type="button"
+              onClick={onStartGame}
+              className="inline-flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl !bg-gradient-to-r from-pink-500 to-rose-500 px-3 sm:px-5 text-xs sm:text-sm font-extrabold !text-white whitespace-nowrap shadow-lg shadow-pink-500/30 border-2 border-white touch-manipulation select-none transition hover:from-pink-600 hover:to-rose-600 active:scale-95"
+            >
+              Mulai Game
+            </button>
+          )}
+        </div>
       )}
 
       {/* Petunjuk kontrol & D-pad hanya untuk siswa (guru tidak bergerak) */}
