@@ -57,7 +57,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     const cleanPin = pinInput.trim().replace(/\D/g, '');
 
     if (cleanPin.length < 4 || cleanPin.length > 6) {
-      setJoinError('Masukkan PIN permainan 4–6 digit.');
+      setJoinError('Masukkan PIN permainan');
       return;
     }
 
