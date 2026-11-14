@@ -841,11 +841,10 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const viewWidth = canvas.width / dpr;
       const viewHeight = canvas.height / dpr;
 
-      // Penuhi lebar kanvas: sisi kiri dan kanan peta tidak menyisakan ruang kosong.
-      // Rasio gambar tetap proporsional; bila rasio layar lebih lebar, bagian atas/bawah
-      // akan terpotong sedikit dan posisi peta tetap dipusatkan secara vertikal.
+      // Guru: peta memenuhi lebar kanvas. Siswa: zoom sedikit lebih dekat agar
+      // objek permainan terlihat lebih besar; posisi peta tetap dipusatkan.
       const isSpectator = spectatorRef.current;
-      const scale = viewWidth / WORLD.width;
+      const scale = (viewWidth / WORLD.width) * (isSpectator ? 1 : 1.12);
       scaleRef.current = scale;
 
       const visibleW = viewWidth / scale;
@@ -986,8 +985,8 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
           me.jumpOffset = Math.max(0, me.jumpOffset - 85 * dt);
         }
 
-        // Kamera mengisi lebar kanvas dan memusatkan peta secara vertikal.
-        camera.current.x = 0;
+        // Kamera dipusatkan agar zoom siswa tidak menempel ke salah satu sisi.
+        camera.current.x = Math.max(0, (WORLD.width - visibleW) / 2);
         camera.current.y = (WORLD.height - visibleH) / 2;
       }
 
