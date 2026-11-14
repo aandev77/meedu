@@ -1996,7 +1996,7 @@ useEffect(() => {
                 <header className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
                   <div>
                     <h2 id="student-scores-title" className="text-lg font-extrabold text-slate-800">Skor Siswa</h2>
-                    <p className="text-xs text-slate-500">Room {currentRoom.code} · diperbarui otomatis</p>
+                    <p className="text-xs text-slate-500">Room {currentRoom.code}</p>
                   </div>
                   <button type="button" onClick={() => setShowStudentScores(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100" aria-label="Tutup">
                     <X className="h-5 w-5" />

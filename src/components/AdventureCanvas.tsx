@@ -668,6 +668,8 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   const playersRef = useRef(players);
   const keys = useRef<Record<string, boolean>>({});
   const camera = useRef({ x: 0, y: 0 });
+  const spectatorPanX = useRef(0);
+  const spectatorDrag = useRef<{ pointerId: number; lastX: number } | null>(null);
   const scaleRef = useRef(1);
   const walkCycle = useRef(0);
 
@@ -841,16 +843,19 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const viewWidth = canvas.width / dpr;
       const viewHeight = canvas.height / dpr;
 
-      // Gunakan mode cover agar kanvas selalu terisi penuh tanpa bidang kosong.
-      // Siswa mendapat zoom lebih kuat; layar HP mendapat pembesaran ekstra.
+      // Zoom sedikit agar kamera memiliki ruang mengikuti karakter pada sumbu X dan Y.
+      // Map boleh terpotong; fokus utama adalah karakter tetap terlihat.
+      // Mode guru: seluruh peta terlihat (tanpa zoom, tanpa terpotong).
       const isSpectator = spectatorRef.current;
-      const isMobile = viewWidth < 640;
-      const coverScale = Math.max(
-        viewWidth / WORLD.width,
-        viewHeight / WORLD.height
-      );
-      const zoom = isSpectator ? 1 : (isMobile ? 1.75 : 1.45);
-      const scale = coverScale * zoom;
+      const isMobileViewport = viewWidth < 700;
+      // Guru di desktop melihat seluruh peta. Di HP gunakan mode cover agar
+      // peta cukup besar, lalu kamera dapat digeser horizontal dengan jari.
+      const spectatorScale = isSpectator
+        ? (isMobileViewport
+            ? Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height)
+            : Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height))
+        : Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height);
+      const scale = isSpectator ? spectatorScale : spectatorScale * 1.1;
       scaleRef.current = scale;
 
       const visibleW = viewWidth / scale;
@@ -991,11 +996,10 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
           me.jumpOffset = Math.max(0, me.jumpOffset - 85 * dt);
         }
 
-        // Kamera mengikuti pemain: saat pemain berjalan, area yang terlihat ikut bergeser.
-        // Ini penting pada HP karena bidang pandang lebih sempit.
+        // Kamera
         camera.current.x = Math.max(
           0,
-          Math.min(WORLD.width - visibleW, worldX - visibleW / 2)
+          Math.min(WORLD.width - visibleW, worldX - visibleW * 0.35)
         );
         camera.current.y = Math.max(
           0,
@@ -1003,14 +1007,18 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         );
       }
 
-      // Mode guru: peta memenuhi lebar kanvas, tidak mengikuti karakter.
+      // Mode guru: peta di tengah kanvas, tidak mengikuti karakter.
       if (isSpectator) {
-        camera.current.x = 0;
-        camera.current.y = (WORLD.height - visibleH) / 2;
+        const maxCameraX = Math.max(0, WORLD.width - visibleW);
+        const centeredX = maxCameraX / 2;
+        camera.current.x = isMobileViewport
+          ? Math.max(0, Math.min(maxCameraX, centeredX + spectatorPanX.current))
+          : centeredX;
+        camera.current.y = Math.max(0, (WORLD.height - visibleH) / 2);
       }
 
       // ---------- Gambar ----------
-      // Bersihkan seluruh kanvas sebelum menggambar peta.
+      // Bersihkan seluruh kanvas dulu (ada sisa ruang di sekitar peta pada mode penuh).
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#5aa83a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -1168,6 +1176,29 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
     me.targetY = worldY / WORLD.height;
   };
 
+  // Guru dapat menggeser peta ke kiri/kanan pada perangkat mobile.
+  const handleMapPointerDown = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!spectatorRef.current || window.innerWidth >= 700) return;
+    spectatorDrag.current = { pointerId: event.pointerId, lastX: event.clientX };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const handleMapPointerMove = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    const drag = spectatorDrag.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const deltaX = event.clientX - drag.lastX;
+    drag.lastX = event.clientX;
+    const scale = scaleRef.current || 1;
+    // Geser berlawanan arah gerakan jari untuk menggeser viewport peta.
+    spectatorPanX.current -= deltaX / scale;
+  };
+
+  const stopMapDrag = (event: React.PointerEvent<HTMLCanvasElement>) => {
+    if (spectatorDrag.current?.pointerId === event.pointerId) {
+      spectatorDrag.current = null;
+    }
+  };
+
   // Tombol arah (layar sentuh / mouse)
   const press = (key: string, down: boolean) => {
     if (down && questionOpenRef.current) return;
@@ -1208,28 +1239,40 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       <canvas
         ref={canvasRef}
         onClick={handleClick}
-        className={`block w-full h-full ${spectator ? 'cursor-default' : 'cursor-crosshair'}`}
+        onPointerDown={handleMapPointerDown}
+        onPointerMove={handleMapPointerMove}
+        onPointerUp={stopMapDrag}
+        onPointerCancel={stopMapDrag}
+        className={`block w-full h-full ${spectator ? 'cursor-grab active:cursor-grabbing touch-none' : 'cursor-crosshair'}`}
       />
 
-      {/* Tombol guru: Lihat Skor sejajar dengan Mulai Game. */}
+      {/* Tombol guru: pada HP menjadi kotak ringkas agar tidak menutupi peta. */}
       {(onShowScores || (onStartGame && !hideStartButton)) && (
-        <div className="absolute z-30 right-3 top-3 sm:right-4 sm:top-4 flex items-center gap-2">
+        <div className="absolute z-30 right-2 top-2 sm:right-4 sm:top-4 flex items-center gap-1.5 sm:gap-2">
           {onShowScores && (
             <button
               type="button"
               onClick={onShowScores}
-              className="inline-flex h-8 sm:h-9 items-center gap-1.5 rounded-xl sm:rounded-2xl !bg-white px-3 sm:px-4 text-xs sm:text-sm font-extrabold !text-pink-600 whitespace-nowrap shadow-lg border-2 border-pink-200 touch-manipulation select-none transition hover:!bg-pink-50 active:scale-95"
+              aria-label="Lihat Skor"
+              title="Lihat Skor"
+              className="flex h-10 w-10 sm:h-9 sm:w-auto sm:px-4 flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-lg sm:rounded-2xl border-2 border-white bg-white !text-pink-600 text-[9px] sm:text-sm font-extrabold shadow-lg touch-manipulation active:scale-95"
             >
-              Lihat Skor
+              <span className="text-base sm:text-sm leading-none">🏆</span>
+              <span className="sm:hidden leading-none">Skor</span>
+              <span className="hidden sm:inline">Lihat Skor</span>
             </button>
           )}
           {onStartGame && !hideStartButton && (
             <button
               type="button"
               onClick={onStartGame}
-              className="inline-flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl !bg-gradient-to-r from-pink-500 to-rose-500 px-3 sm:px-5 text-xs sm:text-sm font-extrabold !text-white whitespace-nowrap shadow-lg shadow-pink-500/30 border-2 border-white touch-manipulation select-none transition hover:from-pink-600 hover:to-rose-600 active:scale-95"
+              aria-label="Mulai Game"
+              title="Mulai Game"
+              className="flex h-10 w-10 sm:h-9 sm:w-auto sm:px-5 flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 rounded-lg sm:rounded-2xl border-2 border-white !bg-gradient-to-r from-pink-500 to-rose-500 !text-white text-[9px] sm:text-sm font-extrabold shadow-lg touch-manipulation active:scale-95"
             >
-              Mulai Game
+              <span className="text-base sm:text-sm leading-none">▶</span>
+              <span className="sm:hidden leading-none">Mulai</span>
+              <span className="hidden sm:inline">Mulai Game</span>
             </button>
           )}
         </div>
