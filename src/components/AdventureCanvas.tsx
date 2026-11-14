@@ -841,11 +841,11 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const viewWidth = canvas.width / dpr;
       const viewHeight = canvas.height / dpr;
 
-      // Selalu tampilkan seluruh peta agar tidak terpotong, baik untuk siswa maupun guru.
-      // Rasio peta dipertahankan; ruang sisa diisi warna latar.
+      // Penuhi lebar kanvas: sisi kiri dan kanan peta tidak menyisakan ruang kosong.
+      // Rasio gambar tetap proporsional; bila rasio layar lebih lebar, bagian atas/bawah
+      // akan terpotong sedikit dan posisi peta tetap dipusatkan secara vertikal.
       const isSpectator = spectatorRef.current;
-      const baseScale = Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height);
-      const scale = baseScale;
+      const scale = viewWidth / WORLD.width;
       scaleRef.current = scale;
 
       const visibleW = viewWidth / scale;
@@ -986,19 +986,19 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
           me.jumpOffset = Math.max(0, me.jumpOffset - 85 * dt);
         }
 
-        // Kamera tetap menampilkan seluruh peta; tidak mengikuti pemain dengan zoom.
-        camera.current.x = (WORLD.width - visibleW) / 2;
+        // Kamera mengisi lebar kanvas dan memusatkan peta secara vertikal.
+        camera.current.x = 0;
         camera.current.y = (WORLD.height - visibleH) / 2;
       }
 
-      // Mode guru: peta di tengah kanvas, tidak mengikuti karakter.
+      // Mode guru: peta memenuhi lebar kanvas, tidak mengikuti karakter.
       if (isSpectator) {
-        camera.current.x = (WORLD.width - visibleW) / 2;
+        camera.current.x = 0;
         camera.current.y = (WORLD.height - visibleH) / 2;
       }
 
       // ---------- Gambar ----------
-      // Bersihkan seluruh kanvas dulu (ada sisa ruang di sekitar peta pada mode penuh).
+      // Bersihkan seluruh kanvas sebelum menggambar peta.
       ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.fillStyle = '#5aa83a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
