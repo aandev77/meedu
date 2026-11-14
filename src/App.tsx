@@ -74,6 +74,10 @@ const notify = (message: string) =>
     title: message,
   });
 
+// Jeda minimal pengiriman posisi pemain ke Firestore saat bergerak.
+// Pemain lain menghaluskan gerakannya sendiri (interpolasi), jadi tidak perlu lebih rapat.
+const POSITION_SYNC_MS = 220;
+
 const SESSION_KEY = 'meedu_active_session';
 
 interface SavedSession {
@@ -137,6 +141,18 @@ export default function App() {
 
   const lastPositionSyncRef = useRef(0);
 
+  // Salinan terbaru currentRoom untuk handler yang dipanggil sangat sering
+  // (membaca ref tidak memicu render ulang). Diisi langsung saat render di bawah.
+  const currentRoomRef = useRef<GameRoom | null>(null);
+  const pendingPositionRef = useRef<{
+    x: number;
+    y: number;
+    facing: 'left' | 'right' | 'up' | 'down';
+    currentZone: any;
+  } | null>(null);
+  const positionTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSyncedPositionRef = useRef({ x: -1, y: -1 });
+
   // Pemulihan sesi setelah refresh: true selama room sedang dimuat ulang
   const [isRestoring, setIsRestoring] = useState<boolean>(
     () => readSavedSession() !== null
@@ -144,6 +160,8 @@ export default function App() {
   const restoreStartedRef = useRef(false);
 
   const userRole = serverRole;
+
+  currentRoomRef.current = currentRoom;
 
   // Local Player Profile
   const [playerName, setPlayerName] = useState<string>(() => {
@@ -317,20 +335,51 @@ useEffect(() => {
       });
     });
 
-    const unsubscribePlayers = subscribePlayers(roomCode, (players) => {
+    // Setiap pemain menulis posisinya beberapa kali per detik, dan setiap tulisan
+    // memicu snapshot berisi SELURUH daftar pemain. Tanpa penggabungan, layar
+    // dirender ulang puluhan kali per detik. Di sini snapshot dikumpulkan dan
+    // diterapkan paling cepat tiap ~100 ms.
+    let pendingPlayers: Player[] | null = null;
+    let flushTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const flushPlayers = () => {
+      flushTimer = null;
+
+      const incoming = pendingPlayers;
+      pendingPlayers = null;
+      if (!incoming) return;
+
       setCurrentRoom((prev) => {
         if (!prev || prev.code !== roomCode) return prev;
 
+        // Bot hanya ada di perangkat host (tidak disimpan di Firestore):
+        // pertahankan agar tidak hilang / reset posisinya tiap snapshot.
+        const localBots = prev.players.filter(
+          (p) => p.isBot && !incoming.some((i) => i.id === p.id)
+        );
+
         return {
           ...prev,
-          players,
+          players: [...incoming, ...localBots],
         };
       });
+    };
+
+    const unsubscribePlayers = subscribePlayers(roomCode, (players) => {
+      pendingPlayers = players;
+
+      if (flushTimer === null) {
+        flushTimer = setTimeout(flushPlayers, 100);
+      }
     });
 
     return () => {
       unsubscribeRoom();
       unsubscribePlayers();
+
+      if (flushTimer !== null) {
+        clearTimeout(flushTimer);
+      }
     };
   }, [currentRoom?.code, isLocalRoom]);
 
@@ -1133,6 +1182,7 @@ useEffect(() => {
   const handleStartGame = async () => {
     if (!currentRoom) return;
 
+    const previousRoom = currentRoom;
     const firstQ = currentRoom.quizPack.questions[0];
 
     const updated: GameRoom = {
@@ -1143,26 +1193,42 @@ useEffect(() => {
       totalTime: firstQ.timeLimit || 15,
     };
 
+    // Tampilkan langsung (optimistis) tanpa menunggu Firestore, supaya awal game
+    // tidak tertahan jaringan. Firestore diperbarui di belakang layar.
+    setCurrentRoom(updated);
+
+    channelRef.current?.postMessage({
+      type: 'ROOM_SYNC',
+      payload: updated,
+    });
+
+    triggerBotDecisions(updated, firstQ);
+
+    if (isLocalRoom) return;
+
     try {
-      if (!isLocalRoom) {
-        await updateRoom(currentRoom.code, {
-          stage: updated.stage,
-          currentQuestionIndex: updated.currentQuestionIndex,
-          timeLeft: updated.timeLeft,
-          totalTime: updated.totalTime,
-        });
-      }
-
-      setCurrentRoom(updated);
-
-      channelRef.current?.postMessage({
-        type: 'ROOM_SYNC',
-        payload: updated,
+      await updateRoom(currentRoom.code, {
+        stage: updated.stage,
+        currentQuestionIndex: updated.currentQuestionIndex,
+        timeLeft: updated.timeLeft,
+        totalTime: updated.totalTime,
       });
-
-      triggerBotDecisions(updated, firstQ);
     } catch (error) {
       console.error('Gagal memulai permainan:', error);
+
+      // Kembalikan ke kondisi sebelum mulai
+      setCurrentRoom((prev) =>
+        prev
+          ? {
+              ...prev,
+              stage: previousRoom.stage,
+              currentQuestionIndex: previousRoom.currentQuestionIndex,
+              timeLeft: previousRoom.timeLeft,
+              totalTime: previousRoom.totalTime,
+            }
+          : prev
+      );
+
       notify('Gagal memulai permainan. Periksa koneksi Firestore.');
     }
   };
@@ -1225,25 +1291,24 @@ useEffect(() => {
     }
 
     const timer = setInterval(() => {
+      const live = currentRoomRef.current;
+
+      if (!live || live.stage !== 'answering') return;
+
+      // Suara dimainkan di luar updater state (updater harus murni)
+      sounds.playTick(live.timeLeft <= 5);
+
       setCurrentRoom((previous) => {
         if (!previous || previous.stage !== 'answering') {
           return previous;
         }
 
         if (previous.timeLeft <= 1) {
-          sounds.playTick(true);
-
           return {
             ...previous,
             timeLeft: 0,
             stage: 'times_up',
           };
-        }
-
-        if (previous.timeLeft <= 5) {
-          sounds.playTick(true);
-        } else {
-          sounds.playTick(false);
         }
 
         return {
@@ -1539,23 +1604,11 @@ useEffect(() => {
     handleHostGame(currentRoom.quizPack, currentRoom.mode);
   };
 
-  // Pemain melompat
-  const handleLocalJump = () => {
+  // Pemain melompat: animasi dikelola canvas, App hanya memutar suara.
+  // (Sebelumnya setiap lompatan membuat state seluruh room diganti.)
+  const handleLocalJump = useCallback(() => {
     sounds.playJump();
-
-    setCurrentRoom((previous) => {
-      if (!previous) return previous;
-
-      return {
-        ...previous,
-        players: previous.players.map((p) =>
-          p.id === activePlayerId
-            ? { ...p, isJumping: true }
-            : p
-        ),
-      };
-    });
-  };
+  }, []);
 
   // Mengirim emote
   const handleSendEmote = async (emoji: string) => {
@@ -1593,45 +1646,103 @@ useEffect(() => {
     }
   };
 
-  // Update posisi pemain dari Canvas
-  const handlePositionUpdate = (
-    x: number,
-    y: number,
-    facing: 'left' | 'right' | 'up' | 'down',
-    currentZone: any
-  ) => {
-    if (!currentRoom) return;
+  // Kirim posisi tertunda ke Firestore (dipanggil dari timer / saat zona berubah)
+  const flushPosition = useCallback(() => {
+    positionTimerRef.current = null;
 
-    setCurrentRoom((previous) => {
-      if (!previous) return previous;
+    const position = pendingPositionRef.current;
+    const room = currentRoomRef.current;
 
-      return {
-        ...previous,
-        players: previous.players.map((p) =>
-          p.id === activePlayerId
-            ? { ...p, x, y, facing, currentZone }
-            : p
-        ),
-      };
+    pendingPositionRef.current = null;
+
+    if (!position || !room) return;
+
+    lastPositionSyncRef.current = Date.now();
+    lastSyncedPositionRef.current = { x: position.x, y: position.y };
+
+    updatePlayer(room.code, activePlayerId, position).catch((error) => {
+      console.error('Gagal menyinkronkan posisi:', error);
     });
+  }, [activePlayerId]);
 
-    if (isLocalRoom) return;
+  // Update posisi pemain dari Canvas.
+  // Dipanggil ~60x per detik, jadi harus murah: posisi disimpan di canvas (ref),
+  // state React hanya diubah ketika ZONA berubah (dipakai untuk penilaian),
+  // dan Firestore diperbarui dengan throttle.
+  const handlePositionUpdate = useCallback(
+    (
+      x: number,
+      y: number,
+      facing: 'left' | 'right' | 'up' | 'down',
+      currentZone: any
+    ) => {
+      const room = currentRoomRef.current;
 
-    const now = Date.now();
+      if (!room) return;
 
-    if (now - lastPositionSyncRef.current >= 300) {
-      lastPositionSyncRef.current = now;
+      const mine = room.players.find((p) => p.id === activePlayerId);
+      const zoneChanged = !!mine && mine.currentZone !== currentZone;
 
-      updatePlayer(currentRoom.code, activePlayerId, {
-        x,
-        y,
-        facing,
-        currentZone,
-      }).catch((error) => {
-        console.error('Gagal menyinkronkan posisi:', error);
-      });
-    }
-  };
+      if (zoneChanged) {
+        // Perbarui ref lebih dulu agar frame berikutnya tidak memicu update ganda
+        currentRoomRef.current = {
+          ...room,
+          players: room.players.map((p) =>
+            p.id === activePlayerId ? { ...p, currentZone } : p
+          ),
+        };
+
+        setCurrentRoom((previous) => {
+          if (!previous) return previous;
+
+          return {
+            ...previous,
+            players: previous.players.map((p) =>
+              p.id === activePlayerId
+                ? { ...p, x, y, facing, currentZone }
+                : p
+            ),
+          };
+        });
+      }
+
+      if (isLocalRoom) return;
+
+      const last = lastSyncedPositionRef.current;
+      const moved =
+        Math.abs(last.x - x) > 0.002 || Math.abs(last.y - y) > 0.002;
+
+      if (!zoneChanged && !moved) return;
+
+      pendingPositionRef.current = { x, y, facing, currentZone };
+
+      if (zoneChanged) {
+        // Zona harus sampai ke Firestore segera: guru memakainya saat membuka jawaban
+        if (positionTimerRef.current !== null) {
+          clearTimeout(positionTimerRef.current);
+        }
+
+        flushPosition();
+      } else if (positionTimerRef.current === null) {
+        const wait = Math.max(
+          0,
+          POSITION_SYNC_MS - (Date.now() - lastPositionSyncRef.current)
+        );
+
+        positionTimerRef.current = setTimeout(flushPosition, wait);
+      }
+    },
+    [activePlayerId, isLocalRoom, flushPosition]
+  );
+
+  // Bersihkan timer pengiriman posisi saat komponen dilepas
+  useEffect(() => {
+    return () => {
+      if (positionTimerRef.current !== null) {
+        clearTimeout(positionTimerRef.current);
+      }
+    };
+  }, []);
 
   // Simpan paket kuis baru
   const handleSaveCustomQuiz = (pack: QuizPack) => {

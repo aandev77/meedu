@@ -11,6 +11,24 @@ interface ArenaCanvasProps {
   onJump: () => void;
 }
 
+/**
+ * Status gerak pemain lokal. Disimpan di ref (BUKAN state React) supaya gerakan
+ * 60 FPS tidak memicu render ulang aplikasi dan tidak tertimpa snapshot Firestore.
+ */
+interface LocalState {
+  x: number;
+  y: number;
+  facing: Player['facing'];
+  currentZone: Player['currentZone'];
+  targetX?: number;
+  targetY?: number;
+  isJumping: boolean;
+  jumpOffset: number;
+}
+
+const TILE_SIZE = 32;
+const FOOTSTEP_INTERVAL_MS = 280;
+
 export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
   room,
   currentPlayerId,
@@ -20,20 +38,75 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // Position & movement refs to avoid React re-renders at 60fps
+  // Semua yang berubah tiap frame disimpan di ref agar tidak memicu render React
   const keysPressed = useRef<{ [key: string]: boolean }>({});
-  const localPlayerRef = useRef<Player | null>(null);
+  const localRef = useRef<LocalState | null>(null);
   const playersRef = useRef<Player[]>(room.players);
   const roomRef = useRef<GameRoom>(room);
 
-  // Keep refs up to date
+  // Posisi tampil pemain lain (dihaluskan / interpolasi menuju data terbaru)
+  const displayRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+
+  // Nilai terakhir dari props, untuk mendeteksi perubahan yang datang dari App
+  const propTargetRef = useRef<{ x?: number; y?: number }>({});
+  const propJumpRef = useRef(false);
+
+  // Latar kotak-kotak digambar sekali lalu di-cache (bukan ~600 fillRect per frame)
+  const backgroundRef = useRef<{ canvas: HTMLCanvasElement; w: number; h: number } | null>(null);
+  const lastFootstepRef = useRef(0);
+
+  // Callback disimpan di ref supaya loop render tidak restart tiap App dirender
+  const onPositionUpdateRef = useRef(onPositionUpdate);
+  const onJumpRef = useRef(onJump);
+
+  useEffect(() => {
+    onPositionUpdateRef.current = onPositionUpdate;
+    onJumpRef.current = onJump;
+  }, [onPositionUpdate, onJump]);
+
+  // Sinkronkan data room ke ref. Posisi pemain lokal TIDAK ditimpa dari props
+  // (hanya diambil sekali di awal), jadi snapshot Firestore lama tidak menarik karakter ke belakang.
   useEffect(() => {
     roomRef.current = room;
     playersRef.current = room.players;
+
     const me = room.players.find((p) => p.id === currentPlayerId);
-    if (me) {
-      localPlayerRef.current = me;
+    if (!me) return;
+
+    const local = localRef.current;
+
+    if (!local) {
+      localRef.current = {
+        x: me.x,
+        y: me.y,
+        facing: me.facing,
+        currentZone: me.currentZone,
+        targetX: me.targetX,
+        targetY: me.targetY,
+        isJumping: !!me.isJumping,
+        jumpOffset: me.jumpOffset || 0,
+      };
+      propTargetRef.current = { x: me.targetX, y: me.targetY };
+      propJumpRef.current = !!me.isJumping;
+      return;
     }
+
+    // Tujuan baru dari App (mis. awal soal berikutnya: semua pemain diarahkan ke tengah)
+    if (
+      me.targetX !== undefined &&
+      me.targetY !== undefined &&
+      (me.targetX !== propTargetRef.current.x || me.targetY !== propTargetRef.current.y)
+    ) {
+      local.targetX = me.targetX;
+      local.targetY = me.targetY;
+    }
+    propTargetRef.current = { x: me.targetX, y: me.targetY };
+
+    // Lompat perayaan dari App saat jawaban benar
+    if (me.isJumping && !propJumpRef.current) {
+      local.isJumping = true;
+    }
+    propJumpRef.current = !!me.isJumping;
   }, [room, currentPlayerId]);
 
   // Handle Keyboard Inputs
@@ -49,7 +122,11 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
 
       if (e.code === 'Space') {
         e.preventDefault();
-        onJump();
+        const local = localRef.current;
+        if (local && !e.repeat && !local.isJumping && local.jumpOffset <= 0) {
+          local.isJumping = true;
+          onJumpRef.current();
+        }
       }
     };
 
@@ -71,37 +148,64 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
       window.removeEventListener('keyup', handleKeyUp);
       window.removeEventListener('blur', handleBlur);
     };
-  }, [onJump]);
+  }, []);
 
   // Click to Move / Tap on canvas
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    if (!canvas || !localPlayerRef.current) return;
+    const local = localRef.current;
+    if (!canvas || !local) return;
     const rect = canvas.getBoundingClientRect();
     const clickX = (e.clientX - rect.left) / rect.width;
     const clickY = (e.clientY - rect.top) / rect.height;
 
-    localPlayerRef.current.targetX = Math.max(0.08, Math.min(0.92, clickX));
-    localPlayerRef.current.targetY = Math.max(0.12, Math.min(0.88, clickY));
+    local.targetX = Math.max(0.08, Math.min(0.92, clickX));
+    local.targetY = Math.max(0.12, Math.min(0.88, clickY));
   };
 
   // Main 60 FPS Render & Physics Loop
   useEffect(() => {
-    let animId: number;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animId = 0;
     let lastTime = performance.now();
     let walkTicker = 0;
+
+    // Latar kotak-kotak di-render sekali per ukuran canvas
+    const getBackground = (w: number, h: number) => {
+      const cached = backgroundRef.current;
+      if (cached && cached.w === w && cached.h === h) return cached.canvas;
+
+      const off = document.createElement('canvas');
+      off.width = w;
+      off.height = h;
+      const bg = off.getContext('2d');
+      if (!bg) return null;
+
+      bg.fillStyle = '#0f172a';
+      bg.fillRect(0, 0, w, h);
+
+      for (let tx = 0; tx < w; tx += TILE_SIZE) {
+        for (let ty = 0; ty < h; ty += TILE_SIZE) {
+          bg.fillStyle =
+            (Math.floor(tx / TILE_SIZE) + Math.floor(ty / TILE_SIZE)) % 2 === 0
+              ? 'rgba(30, 41, 59, 0.4)'
+              : 'rgba(15, 23, 42, 0.6)';
+          bg.fillRect(tx, ty, TILE_SIZE, TILE_SIZE);
+        }
+      }
+
+      backgroundRef.current = { canvas: off, w, h };
+      return off;
+    };
 
     const renderLoop = (time: number) => {
       const dt = Math.min((time - lastTime) / 1000, 0.05);
       lastTime = time;
-
-      const canvas = canvasRef.current;
-      if (!canvas) {
-        animId = requestAnimationFrame(renderLoop);
-        return;
-      }
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
 
       const currentRoom = roomRef.current;
       const currentQuestion = currentRoom.quizPack.questions[currentRoom.currentQuestionIndex];
@@ -111,7 +215,7 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
       const height = canvas.height;
 
       // Update Local Player Movement
-      const me = localPlayerRef.current;
+      const me = localRef.current;
       if (me) {
         let dx = 0;
         let dy = 0;
@@ -139,11 +243,8 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
         // Apply movement vector
         if (dx !== 0 || dy !== 0) {
           const len = Math.hypot(dx, dy) || 1;
-          const nextX = Math.max(0.08, Math.min(0.92, me.x + (dx / len) * speed));
-          const nextY = Math.max(0.12, Math.min(0.88, me.y + (dy / len) * speed));
-
-          me.x = nextX;
-          me.y = nextY;
+          me.x = Math.max(0.08, Math.min(0.92, me.x + (dx / len) * speed));
+          me.y = Math.max(0.12, Math.min(0.88, me.y + (dy / len) * speed));
           walkTicker += 0.25;
 
           if (dx < -0.1) me.facing = 'left';
@@ -151,16 +252,19 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
           else if (dy < -0.1) me.facing = 'up';
           else if (dy > 0.1) me.facing = 'down';
 
-          // Footstep sound throttled
-          if (Math.floor(walkTicker) % 8 === 0) {
+          // Footstep sound: dibatasi per waktu (sebelumnya terpanggil beberapa frame berturut-turut)
+          if (time - lastFootstepRef.current > FOOTSTEP_INTERVAL_MS) {
+            lastFootstepRef.current = time;
             sounds.playFootstep();
           }
-
-          // Compute zone
-          const newZone = getZoneFromPosition(me.x, me.y, quizType);
-          me.currentZone = newZone;
-          onPositionUpdate(me.x, me.y, me.facing, newZone);
         }
+
+        // Zona dihitung dari posisi setiap frame, jadi tetap benar walau pemain diam
+        me.currentZone = getZoneFromPosition(me.x, me.y, quizType);
+
+        // Handler di App murah: hanya memperbarui state saat zona berubah
+        // dan mengirim posisi ke Firestore dengan throttle.
+        onPositionUpdateRef.current(me.x, me.y, me.facing, me.currentZone);
 
         // Jump physics
         if (me.isJumping) {
@@ -172,6 +276,10 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
           me.jumpOffset = Math.max(0, me.jumpOffset - 85 * dt);
         }
       }
+
+      // Zona pemain: pemain lokal memakai nilai dari canvas (selalu terbaru)
+      const zoneOf = (p: Player) =>
+        me && p.id === currentPlayerId ? me.currentZone : p.currentZone;
 
       // Update Simulated Bot Movement
       playersRef.current.forEach((player) => {
@@ -208,21 +316,13 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
       // -------------------------------------------------------------
       // DRAW ARENA ENVIRONMENT
       // -------------------------------------------------------------
-      ctx.clearRect(0, 0, width, height);
-
-      // Arena Base Floor
-      ctx.fillStyle = '#0f172a';
-      ctx.fillRect(0, 0, width, height);
-
-      // Checkerboard tiles
-      const tileSize = 32;
-      for (let tx = 0; tx < width; tx += tileSize) {
-        for (let ty = 0; ty < height; ty += tileSize) {
-          ctx.fillStyle = (Math.floor(tx / tileSize) + Math.floor(ty / tileSize)) % 2 === 0
-            ? 'rgba(30, 41, 59, 0.4)'
-            : 'rgba(15, 23, 42, 0.6)';
-          ctx.fillRect(tx, ty, tileSize, tileSize);
-        }
+      const background = getBackground(width, height);
+      if (background) {
+        ctx.drawImage(background, 0, 0);
+      } else {
+        ctx.clearRect(0, 0, width, height);
+        ctx.fillStyle = '#0f172a';
+        ctx.fillRect(0, 0, width, height);
       }
 
       const isReveal = currentRoom.stage === 'reveal' || currentRoom.stage === 'times_up' || currentRoom.stage === 'round_result';
@@ -316,8 +416,8 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
         ctx.restore();
 
         // Zone Counters on Floor
-        const oCount = playersRef.current.filter((p) => p.currentZone === 'O').length;
-        const xCount = playersRef.current.filter((p) => p.currentZone === 'X').length;
+        const oCount = playersRef.current.filter((p) => zoneOf(p) === 'O').length;
+        const xCount = playersRef.current.filter((p) => zoneOf(p) === 'X').length;
 
         ctx.font = 'bold 12px system-ui, sans-serif';
         ctx.fillStyle = '#ffffff';
@@ -365,7 +465,7 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
           ctx.fillText(q.label.slice(0, 32), q.x + qw / 2, q.y + qh / 2 + 24, maxTextW);
 
           // Player count
-          const qCount = playersRef.current.filter((p) => p.currentZone === q.zone).length;
+          const qCount = playersRef.current.filter((p) => zoneOf(p) === q.zone).length;
           ctx.font = 'bold 11px system-ui, sans-serif';
           ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
           ctx.fillText(`👥 ${qCount} Pemain`, q.x + qw / 2, q.y + qh - 16);
@@ -380,12 +480,57 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
       // -------------------------------------------------------------
       // DRAW PLAYERS (Sorted by Y-coordinate for proper 2.5D depth!)
       // -------------------------------------------------------------
-      const sortedPlayers = [...playersRef.current].sort((a, b) => a.y - b.y);
+      // Pemain lain digeser halus menuju posisi terbaru dari Firestore (interpolasi),
+      // karena datanya hanya datang beberapa kali per detik.
+      const displayMap = displayRef.current;
+      const smoothing = 1 - Math.exp(-dt * 12);
 
-      sortedPlayers.forEach((player) => {
-        const px = player.x * width;
-        const py = player.y * height;
+      const entries: { player: Player; x: number; y: number; isCurrent: boolean }[] = [];
+
+      playersRef.current.forEach((player) => {
         const isCurrent = player.id === currentPlayerId;
+
+        if (isCurrent && me) {
+          entries.push({
+            player: {
+              ...player,
+              x: me.x,
+              y: me.y,
+              facing: me.facing,
+              currentZone: me.currentZone,
+              isJumping: me.isJumping,
+              jumpOffset: me.jumpOffset,
+            },
+            x: me.x,
+            y: me.y,
+            isCurrent: true,
+          });
+          return;
+        }
+
+        // Bot disimulasikan per frame di atas, sudah halus
+        if (player.isBot) {
+          entries.push({ player, x: player.x, y: player.y, isCurrent: false });
+          return;
+        }
+
+        let d = displayMap.get(player.id);
+        if (!d || Math.hypot(player.x - d.x, player.y - d.y) > 0.5) {
+          d = { x: player.x, y: player.y };
+          displayMap.set(player.id, d);
+        } else {
+          d.x += (player.x - d.x) * smoothing;
+          d.y += (player.y - d.y) * smoothing;
+        }
+
+        entries.push({ player, x: d.x, y: d.y, isCurrent: false });
+      });
+
+      entries.sort((a, b) => a.y - b.y);
+
+      entries.forEach(({ player, x, y, isCurrent }) => {
+        const px = x * width;
+        const py = y * height;
 
         // Highlight ring under current player
         if (isCurrent) {
@@ -414,22 +559,32 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
 
     animId = requestAnimationFrame(renderLoop);
     return () => cancelAnimationFrame(animId);
-  }, [currentPlayerId, onPositionUpdate]);
+    // Hanya restart bila pemain berganti. Callback & data room dibaca lewat ref.
+  }, [currentPlayerId]);
 
   // Resize canvas when container size changes
   useEffect(() => {
-    const handleResize = () => {
-      const canvas = canvasRef.current;
-      const container = containerRef.current;
-      if (!canvas || !container) return;
+    const canvas = canvasRef.current;
+    const container = containerRef.current;
+    if (!canvas || !container) return;
 
-      canvas.width = container.clientWidth;
-      canvas.height = container.clientHeight;
+    const handleResize = () => {
+      const w = container.clientWidth;
+      const h = container.clientHeight;
+      if (canvas.width !== w) canvas.width = w;
+      if (canvas.height !== h) canvas.height = h;
     };
 
     handleResize();
+
+    const observer = new ResizeObserver(handleResize);
+    observer.observe(container);
     window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+    };
   }, []);
 
   return (
