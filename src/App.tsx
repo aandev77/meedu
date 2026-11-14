@@ -62,6 +62,57 @@ const BOT_NAMES = [
   'Bima Tangkas',
 ];
 
+/* ------------------------------------------------------------------ */
+/*  Sesi room aktif: disimpan agar refresh browser tidak kembali ke    */
+/*  lobi (berlaku untuk guru maupun murid pada room Firestore).        */
+/* ------------------------------------------------------------------ */
+const SESSION_KEY = 'meedu_active_session';
+
+interface SavedSession {
+  code: string;
+  uid: string;
+}
+
+const readSavedSession = (): SavedSession | null => {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+
+    const parsed = JSON.parse(raw);
+
+    if (
+      parsed &&
+      typeof parsed.code === 'string' &&
+      typeof parsed.uid === 'string'
+    ) {
+      return { code: parsed.code, uid: parsed.uid };
+    }
+  } catch {
+    // abaikan data rusak
+  }
+
+  return null;
+};
+
+const saveSession = (session: SavedSession) => {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+  } catch {
+    // penyimpanan penuh / diblokir: abaikan
+  }
+};
+
+const clearSession = () => {
+  try {
+    localStorage.removeItem(SESSION_KEY);
+  } catch {
+    // abaikan
+  }
+};
+
+const progressStorageKey = (code: string, uid: string) =>
+  `meedu_adv_${code}_${uid}`;
+
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -77,6 +128,12 @@ export default function App() {
   const [isLocalRoom, setIsLocalRoom] = useState(false);
 
   const lastPositionSyncRef = useRef(0);
+
+  // Pemulihan sesi setelah refresh: true selama room sedang dimuat ulang
+  const [isRestoring, setIsRestoring] = useState<boolean>(
+    () => readSavedSession() !== null
+  );
+  const restoreStartedRef = useRef(false);
 
   const userRole = serverRole;
 
@@ -236,6 +293,8 @@ useEffect(() => {
 
     const unsubscribeRoom = subscribeRoom(roomCode, (room) => {
       if (!room) {
+        // Room sudah dihapus: bersihkan sesi tersimpan
+        clearSession();
         setCurrentRoom(null);
         return;
       }
@@ -266,6 +325,167 @@ useEffect(() => {
       unsubscribePlayers();
     };
   }, [currentRoom?.code, isLocalRoom]);
+
+  // Simpan room aktif agar bisa dipulihkan setelah refresh
+  useEffect(() => {
+    if (isRestoring || isLocalRoom || !user || !currentRoom?.code) return;
+
+    saveSession({ code: currentRoom.code, uid: user.uid });
+  }, [isRestoring, isLocalRoom, user?.uid, currentRoom?.code]);
+
+  // Simpan progres Adventure (peti, skor, riwayat jawaban) per room & akun
+  useEffect(() => {
+    if (
+      isRestoring ||
+      isLocalRoom ||
+      !user ||
+      !currentRoom ||
+      currentRoom.mode !== 'adventure'
+    ) {
+      return;
+    }
+
+    try {
+      localStorage.setItem(
+        progressStorageKey(currentRoom.code, user.uid),
+        JSON.stringify({
+          chestCompleted,
+          chestScores,
+          answerHistory: adventureAnswerHistory,
+          finished: showAdventurePodium,
+        })
+      );
+    } catch {
+      // abaikan
+    }
+  }, [
+    isRestoring,
+    isLocalRoom,
+    user?.uid,
+    currentRoom?.code,
+    currentRoom?.mode,
+    chestCompleted,
+    chestScores,
+    adventureAnswerHistory,
+    showAdventurePodium,
+  ]);
+
+  // Pulihkan room setelah refresh (tunggu login & role selesai diverifikasi)
+  useEffect(() => {
+    if (authLoading || !isRestoring || restoreStartedRef.current) return;
+
+    restoreStartedRef.current = true;
+
+    const saved = readSavedSession();
+
+    if (!user || !saved || saved.uid !== user.uid) {
+      clearSession();
+      setIsRestoring(false);
+      return;
+    }
+
+    // Ambil daftar pemain sekali (untuk tahu apakah murid masih terdaftar)
+    const fetchPlayersOnce = (code: string) =>
+      new Promise<Player[] | null>((resolve) => {
+        let done = false;
+        let unsubscribe: (() => void) | undefined;
+
+        const finish = (value: Player[] | null) => {
+          if (done) return;
+          done = true;
+          clearTimeout(timer);
+          unsubscribe?.();
+          resolve(value);
+        };
+
+        const timer = setTimeout(() => finish(null), 4000);
+
+        try {
+          unsubscribe = subscribePlayers(code, (players) => finish(players));
+          if (done) unsubscribe?.();
+        } catch {
+          finish(null);
+        }
+      });
+
+    const restore = async () => {
+      try {
+        const room = await getRoom(saved.code);
+
+        if (!room) {
+          clearSession();
+          return;
+        }
+
+        if (userRole === 'teacher') {
+          if (room.hostId !== user.uid) {
+            clearSession();
+            return;
+          }
+        } else {
+          const existing = await fetchPlayersOnce(saved.code);
+
+          // Murid belum/tidak lagi terdaftar di room: daftarkan ulang
+          if (existing && !existing.some((p) => p.id === user.uid)) {
+            await joinRoom(saved.code, {
+              id: user.uid,
+              name: playerName || 'Siswa Juara',
+              isHost: false,
+              avatar,
+              x: 0.45 + Math.random() * 0.1,
+              y: 0.45 + Math.random() * 0.1,
+              facing: 'down',
+              isJumping: false,
+              jumpOffset: 0,
+              currentZone: 'none',
+              score: 0,
+              streak: 0,
+            });
+          }
+        }
+
+        // Pulihkan progres Adventure (diatur bersamaan dengan room)
+        try {
+          const rawProgress = localStorage.getItem(
+            progressStorageKey(saved.code, user.uid)
+          );
+
+          if (rawProgress) {
+            const progress = JSON.parse(rawProgress);
+
+            setChestCompleted(
+              Array.isArray(progress.chestCompleted)
+                ? progress.chestCompleted
+                : []
+            );
+            setChestScores(
+              progress.chestScores && typeof progress.chestScores === 'object'
+                ? progress.chestScores
+                : {}
+            );
+            setAdventureAnswerHistory(
+              Array.isArray(progress.answerHistory)
+                ? progress.answerHistory
+                : []
+            );
+            setShowAdventurePodium(progress.finished === true);
+          }
+        } catch {
+          // progres rusak: mulai dari kosong
+        }
+
+        setIsMapTest(false);
+        setIsLocalRoom(false);
+        setCurrentRoom(room);
+      } catch (error) {
+        console.error('Gagal memulihkan room setelah refresh:', error);
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+
+    void restore();
+  }, [authLoading, isRestoring, user, userRole, playerName, avatar]);
 
   // Memulai soal ketika pemain mendekati peti
   useEffect(() => {
@@ -542,6 +762,16 @@ useEffect(() => {
 
   // Keluar dari room
   const handleLeaveRoom = () => {
+    // Keluar dengan sengaja: hapus sesi & progres tersimpan
+    clearSession();
+    if (currentRoom && user) {
+      try {
+        localStorage.removeItem(progressStorageKey(currentRoom.code, user.uid));
+      } catch {
+        // abaikan
+      }
+    }
+
     setCurrentRoom(null);
     setIsMapTest(false);
     setIsLocalRoom(false);
@@ -1268,6 +1498,15 @@ useEffect(() => {
       };
     });
 
+    // Simpan skor akhir ke Firestore agar tetap ada setelah refresh
+    if (!isLocalRoom) {
+      updatePlayer(currentRoom.code, activePlayerId, {
+        score: finalScore,
+      }).catch((error) => {
+        console.error('Gagal menyimpan skor akhir:', error);
+      });
+    }
+
     setIsQuestionOpen(false);
     setShowAnswer(false);
     setActiveChest(null);
@@ -1471,10 +1710,10 @@ useEffect(() => {
     currentRoom?.hostId === activePlayerId;
 
   // AUTH SCREEN
-  if (authLoading) {
+  if (authLoading || isRestoring) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50 via-white to-rose-100 flex items-center justify-center text-slate-700">
-        Memeriksa akun...
+        {authLoading ? 'Memeriksa akun...' : 'Memuat permainan...'}
       </div>
     );
   }
@@ -1495,6 +1734,7 @@ useEffect(() => {
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         activeRoomCode={currentRoom?.code}
+        hideActions={!!currentRoom && currentRoom.stage !== 'waiting'}
       />
 
       {/* MAIN SCREEN SWITCHER */}

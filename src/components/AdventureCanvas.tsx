@@ -1104,9 +1104,9 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         <button
           type="button"
           onClick={onStartGame}
-          className="absolute z-30 right-2 top-12 sm:right-3 sm:top-3 inline-flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl !bg-gradient-to-r from-pink-500 to-rose-500 px-3.5 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-base font-extrabold !text-white whitespace-nowrap shadow-lg shadow-pink-500/30 border-2 border-white touch-manipulation select-none transition hover:from-pink-600 hover:to-rose-600 active:scale-95"
+          className="absolute z-30 right-3 top-3 sm:right-4 sm:top-4 inline-flex h-8 sm:h-9 items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl !bg-gradient-to-r from-pink-500 to-rose-500 px-3 sm:px-5 text-xs sm:text-sm font-extrabold !text-white whitespace-nowrap shadow-lg shadow-pink-500/30 border-2 border-white touch-manipulation select-none transition hover:from-pink-600 hover:to-rose-600 active:scale-95"
         >
-          Mulai Game
+          ▶ Mulai Game
         </button>
       )}
 

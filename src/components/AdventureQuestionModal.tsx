@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import { Question } from '../types/game';
 
@@ -90,54 +89,56 @@ export const AdventureQuestionModal: React.FC<AdventureQuestionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-black/70 p-4">
-      <div className="my-auto max-h-[calc(100vh-2rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-white/20 bg-slate-900 p-6 text-white shadow-2xl">
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center overflow-y-auto bg-pink-950/50 p-3 backdrop-blur-sm sm:p-4">
+      <div className="my-auto max-h-[calc(100dvh-1.5rem)] w-full max-w-xl overflow-y-auto rounded-2xl border border-pink-100 bg-gradient-to-br from-white via-white to-pink-50 p-4 text-slate-800 shadow-2xl shadow-pink-500/20 sm:max-h-[calc(100dvh-2rem)] sm:p-6">
 
         {!showAnswer ? (
           <>
-            <div className="mb-5 flex items-center justify-between">
-              <span className="rounded-full bg-amber-500/20 px-3 py-1 text-sm font-bold text-amber-300">
+            <div className="mb-4 flex items-center justify-between gap-2 sm:mb-5">
+              <span className="rounded-full bg-pink-100 px-3 py-1 text-xs font-bold text-pink-700 sm:text-sm">
                 PETI HARTA KARUN
               </span>
 
-              <span className={`rounded-lg px-4 py-2 font-bold ${
-                timeLeft <= 5
-                  ? 'bg-red-600 text-white'
-                  : 'bg-slate-700 text-white'
-              }`}>
+              <span
+                className={`whitespace-nowrap rounded-lg border px-3 py-1.5 text-sm font-bold tabular-nums sm:px-4 sm:py-2 sm:text-base ${
+                  timeLeft <= 5
+                    ? 'border-rose-600 bg-rose-600 text-white'
+                    : 'border-pink-200 bg-pink-50 text-pink-700'
+                }`}
+              >
                 {timeLeft} detik
               </span>
             </div>
 
-            <h2 className="mb-6 text-xl font-bold leading-relaxed">
+            <h2 className="mb-5 text-lg font-bold leading-relaxed text-slate-800 sm:mb-6 sm:text-xl">
               {question.question}
             </h2>
 
             {question.type === 'ox' ? (
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-3 sm:gap-4">
                 <button
                   onClick={() => handleAnswer('O')}
-                  className="rounded-xl bg-green-600 p-5 text-2xl font-bold hover:bg-green-500"
+                  className="rounded-xl bg-pink-600 p-4 text-xl font-bold text-white shadow-md shadow-pink-500/30 transition hover:bg-pink-700 active:scale-95 sm:p-5 sm:text-2xl"
                 >
                   O
                 </button>
 
                 <button
                   onClick={() => handleAnswer('X')}
-                  className="rounded-xl bg-red-600 p-5 text-2xl font-bold hover:bg-red-500"
+                  className="rounded-xl border-2 border-pink-300 bg-white p-4 text-xl font-bold text-pink-600 shadow-md shadow-pink-500/10 transition hover:bg-pink-50 active:scale-95 sm:p-5 sm:text-2xl"
                 >
                   X
                 </button>
               </div>
             ) : question.type === 'multiple' ? (
-              <div className="grid gap-3">
+              <div className="grid gap-2.5 sm:gap-3">
                 {(question.options ?? []).map((option, index) => (
                   <button
                     key={index}
                     onClick={() => handleAnswer(index)}
-                    className="rounded-xl border border-white/10 bg-slate-800 p-4 text-left hover:border-blue-400 hover:bg-slate-700"
+                    className="rounded-xl border border-pink-100 bg-white p-3 text-left text-sm text-slate-700 shadow-sm transition hover:border-pink-400 hover:bg-pink-50 active:scale-[0.99] sm:p-4 sm:text-base"
                   >
-                    <span className="mr-3 font-bold text-blue-300">
+                    <span className="mr-3 font-bold text-pink-600">
                       {String.fromCharCode(65 + index)}.
                     </span>
                     {option}
@@ -145,19 +146,19 @@ export const AdventureQuestionModal: React.FC<AdventureQuestionModalProps> = ({
                 ))}
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <textarea
                   value={essayAnswer}
                   onChange={(e) => setEssayAnswer(e.target.value)}
                   placeholder="Ketik jawabanmu di sini..."
                   rows={4}
-                  className="w-full resize-y rounded-xl border border-white/10 bg-slate-800 p-4 text-white placeholder-slate-400 outline-none focus:border-blue-400"
+                  className="w-full resize-y rounded-xl border border-pink-200 bg-white p-3 text-sm text-slate-800 placeholder-slate-400 outline-none focus:border-pink-500 focus:ring-2 focus:ring-pink-200 sm:p-4 sm:text-base"
                 />
 
                 <button
                   onClick={handleEssaySubmit}
                   disabled={!essayAnswer.trim()}
-                  className="w-full rounded-xl bg-blue-600 py-3 font-bold hover:bg-blue-500 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl bg-pink-600 py-3 font-bold text-white shadow-md shadow-pink-500/30 transition hover:bg-pink-700 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Kirim Jawaban
                 </button>
@@ -166,37 +167,37 @@ export const AdventureQuestionModal: React.FC<AdventureQuestionModalProps> = ({
 
             <button
               onClick={onClose}
-              className="mt-6 w-full rounded-xl bg-slate-700 py-3 font-semibold hover:bg-slate-600"
+              className="mt-5 w-full rounded-xl border border-pink-100 bg-pink-50 py-3 font-semibold text-pink-700 transition hover:bg-pink-100 sm:mt-6"
             >
               Tutup Sementara
             </button>
           </>
         ) : (
-          <div className="py-4 text-center">
-            <h2 className="mb-4 text-2xl font-extrabold text-amber-300">
+          <div className="py-2 text-center sm:py-4">
+            <h2 className="mb-4 text-xl font-extrabold text-pink-600 sm:text-2xl">
               BELAJAR LEBIH GIAT LAGI YAAAAA
             </h2>
 
-            <p className="mb-3 text-slate-300">
+            <p className="mb-3 text-slate-500">
               Jawaban yang benar:
             </p>
 
-            <p className="mb-5 whitespace-pre-wrap text-xl font-bold text-green-400">
+            <p className="mb-5 whitespace-pre-wrap text-lg font-bold text-emerald-600 sm:text-xl">
               {getCorrectAnswer()}
             </p>
 
-            <div className="mb-6 rounded-xl bg-slate-800 p-4 text-left">
-              <p className="mb-2 font-bold text-amber-300">
+            <div className="mb-5 rounded-xl border border-pink-100 bg-pink-50 p-4 text-left sm:mb-6">
+              <p className="mb-2 font-bold text-pink-700">
                 Pembahasan
               </p>
-              <p className="text-sm leading-relaxed text-slate-300">
+              <p className="text-sm leading-relaxed text-slate-600">
                 {question.explanation || 'Tidak ada penjelasan untuk soal ini.'}
               </p>
             </div>
 
             <button
               onClick={onContinue}
-              className="w-full rounded-xl bg-green-600 py-3 font-bold hover:bg-green-500"
+              className="w-full rounded-xl bg-pink-600 py-3 font-bold text-white shadow-md shadow-pink-500/30 transition hover:bg-pink-700"
             >
               Lanjutkan Petualangan
             </button>

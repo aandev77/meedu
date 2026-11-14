@@ -23,6 +23,8 @@ interface NavbarProps {
   isMuted: boolean;
   onToggleMute: () => void;
   activeRoomCode?: string;
+  /** Sembunyikan semua tombol; hanya tampilkan nama "Meedu Quiz" (saat permainan berlangsung). */
+  hideActions?: boolean;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,6 +35,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   isMuted,
   onToggleMute,
   activeRoomCode,
+  hideActions = false,
 }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
@@ -82,7 +85,8 @@ export const Navbar: React.FC<NavbarProps> = ({
             </div>
           </div>
 
-          {/* ACTIONS */}
+          {/* ACTIONS (disembunyikan saat permainan berlangsung) */}
+          {!hideActions && (
           <nav className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end sm:gap-2">
 
             {/* TEACHER ACTION */}
@@ -253,6 +257,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             </button>
 
           </nav>
+          )}
         </div>
       </div>
     </header>
