@@ -568,11 +568,14 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
     const container = containerRef.current;
     if (!canvas || !container) return;
 
+    // Ukuran canvas mengikuti wadah. Canvas diletakkan absolute (lihat JSX), jadi
+    // ukuran bawaannya tidak ikut menentukan tinggi wadah dan tidak terjadi putaran
+    // umpan balik (ukuran → render ulang → ukuran) yang bisa menggelembungkan halaman di HP.
     const handleResize = () => {
-      const w = container.clientWidth;
-      const h = container.clientHeight;
-      if (canvas.width !== w) canvas.width = w;
-      if (canvas.height !== h) canvas.height = h;
+      const w = Math.floor(container.clientWidth);
+      const h = Math.floor(container.clientHeight);
+      if (w > 0 && canvas.width !== w) canvas.width = w;
+      if (h > 0 && canvas.height !== h) canvas.height = h;
     };
 
     handleResize();
@@ -595,7 +598,7 @@ export const ArenaCanvas: React.FC<ArenaCanvasProps> = ({
       <canvas
         ref={canvasRef}
         onClick={handleCanvasClick}
-        className="w-full h-full block"
+        className="absolute inset-0 w-full h-full block"
       />
 
       {/* Control Hint in safe margin */}
