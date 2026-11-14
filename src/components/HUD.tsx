@@ -37,6 +37,22 @@ export const HUD: React.FC<HUDProps> = ({
   // Mode Adventure: tanpa skor/peringkat, PIN + suara + keluar dirapikan rata kiri.
   const isAdventure = room.mode === 'adventure';
 
+  // Tema Adventure: pink & putih. Mode lain tetap gelap.
+  const pillClass = isAdventure
+    ? 'bg-white/95 border-pink-200'
+    : 'bg-slate-900/90 border-slate-700/80';
+  const labelClass = isAdventure ? 'text-pink-400' : 'text-slate-400';
+  const pinClass = isAdventure ? 'text-pink-600' : 'text-indigo-300';
+  const iconBtnClass = isAdventure
+    ? 'text-pink-500 hover:text-pink-700 hover:bg-pink-50'
+    : 'text-slate-400 hover:text-white hover:bg-slate-800';
+  const muteBtnClass = isAdventure
+    ? 'text-pink-500 hover:text-pink-700 hover:bg-pink-50'
+    : 'text-slate-300 hover:text-white hover:bg-slate-800';
+  const leaveBtnClass = isAdventure
+    ? 'text-rose-600 hover:text-white hover:bg-rose-500'
+    : 'text-rose-300 hover:text-white hover:bg-rose-600/30';
+
   return (
     <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-4 z-20">
       {/* TOP SECTION: BAR & QUESTION CARD DOCKED AT TOP */}
@@ -47,17 +63,19 @@ export const HUD: React.FC<HUDProps> = ({
       >
         {/* Top Info Bar */}
         <div
-          className={`flex flex-wrap items-center gap-1.5 sm:gap-3 ${
-            isAdventure ? 'justify-start' : 'items-start justify-between'
+          className={`flex flex-wrap gap-1.5 sm:gap-3 ${
+            isAdventure ? 'items-center justify-start' : 'items-start justify-between'
           }`}
         >
           {/* Room Code Badge */}
-          <div className="pointer-events-auto flex h-8 sm:h-9 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 bg-slate-900/90 border border-slate-700/80 px-2 sm:px-3.5 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md">
-            <span className="shrink-0 text-[9px] sm:text-[11px] font-semibold text-slate-400">PIN</span>
-            <span className="min-w-0 truncate font-black text-indigo-300 tracking-wide text-[10px] sm:text-sm">{room.code}</span>
+          <div
+            className={`pointer-events-auto flex h-8 sm:h-9 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md`}
+          >
+            <span className={`shrink-0 text-[9px] sm:text-[11px] font-semibold ${labelClass}`}>PIN</span>
+            <span className={`min-w-0 truncate font-black ${pinClass} tracking-wide text-[10px] sm:text-sm`}>{room.code}</span>
             <button
               onClick={handleCopyPin}
-              className="shrink-0 p-1 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition cursor-pointer"
+              className={`shrink-0 p-1 rounded-lg ${iconBtnClass} transition cursor-pointer`}
               title="Salin PIN"
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
@@ -92,17 +110,19 @@ export const HUD: React.FC<HUDProps> = ({
             )}
 
             {/* Audio toggle & leave button */}
-            <div className="pointer-events-auto flex h-8 sm:h-9 shrink-0 items-center gap-0.5 bg-slate-900/90 border border-slate-700/80 px-0.5 rounded-lg sm:rounded-xl shadow-xl">
+            <div
+              className={`pointer-events-auto flex h-8 sm:h-9 shrink-0 items-center gap-0.5 ${pillClass} border px-0.5 rounded-lg sm:rounded-xl shadow-xl`}
+            >
               <button
                 onClick={onToggleMute}
-                className="p-1 sm:p-1.5 rounded-md sm:rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"
+                className={`p-1 sm:p-1.5 rounded-md sm:rounded-lg ${muteBtnClass} transition cursor-pointer`}
                 title={isMuted ? 'Nyalakan Suara' : 'Matikan Suara'}
               >
-                {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className="w-3.5 h-3.5 text-emerald-400" />}
+                {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className={`w-3.5 h-3.5 ${isAdventure ? 'text-pink-500' : 'text-emerald-400'}`} />}
               </button>
               <button
                 onClick={onLeaveRoom}
-                className="px-1.5 sm:px-2.5 py-1 text-[9px] sm:text-[11px] font-semibold text-rose-300 hover:text-white hover:bg-rose-600/30 rounded-md sm:rounded-lg transition cursor-pointer whitespace-nowrap"
+                className={`px-1.5 sm:px-2.5 py-1 text-[9px] sm:text-[11px] font-semibold ${leaveBtnClass} rounded-md sm:rounded-lg transition cursor-pointer whitespace-nowrap`}
               >
                 Keluar
               </button>

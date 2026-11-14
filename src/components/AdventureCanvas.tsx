@@ -1079,12 +1079,12 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       className={`
         ${position}
         flex h-full w-full aspect-square items-center justify-center
-        rounded-xl sm:rounded-2xl border border-white/25
-        !bg-slate-900/90 !text-white
+        rounded-xl sm:rounded-2xl border-2 border-pink-300
+        !bg-white/90 !text-pink-600
         font-sans text-lg sm:text-2xl font-black
-        shadow-lg backdrop-blur-sm
+        shadow-lg shadow-pink-500/20 backdrop-blur-sm
         touch-none select-none
-        transition-transform active:scale-95 active:!bg-slate-700
+        transition-transform active:scale-95 active:!bg-pink-100
       `}
     >
       {label}
@@ -1104,9 +1104,9 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         <button
           type="button"
           onClick={onStartGame}
-          className="absolute z-30 right-3 top-3 flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm sm:text-base font-extrabold text-white shadow-lg border-2 border-white/70 transition-transform hover:bg-emerald-600 active:scale-95"
+          className="absolute z-30 right-2 top-12 sm:right-3 sm:top-3 inline-flex items-center gap-1.5 sm:gap-2 rounded-xl sm:rounded-2xl !bg-gradient-to-r from-pink-500 to-rose-500 px-3.5 py-2 sm:px-5 sm:py-2.5 text-xs sm:text-base font-extrabold !text-white whitespace-nowrap shadow-lg shadow-pink-500/30 border-2 border-white touch-manipulation select-none transition hover:from-pink-600 hover:to-rose-600 active:scale-95"
         >
-          ▶ Mulai Game
+          Mulai Game
         </button>
       )}
 
