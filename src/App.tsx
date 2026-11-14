@@ -1935,6 +1935,7 @@ useEffect(() => {
               room={currentRoom}
               currentPlayer={currentPlayer}
               onLeaveRoom={handleLeaveRoom}
+              isHost={isRoomHost}
               isMuted={isMuted}
               onToggleMute={handleToggleMute}
             />

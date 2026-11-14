@@ -6,6 +6,8 @@ interface HUDProps {
   room: GameRoom;
   currentPlayer: Player;
   onLeaveRoom: () => void;
+  /** Guru/host perlu konfirmasi sebelum mengakhiri room. */
+  isHost?: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
 }
@@ -14,11 +16,27 @@ export const HUD: React.FC<HUDProps> = ({
   room,
   currentPlayer,
   onLeaveRoom,
+  isHost = false,
   isMuted,
   onToggleMute,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const [showEndConfirm, setShowEndConfirm] = React.useState(false);
   const currentQuestion: Question | undefined = room.quizPack.questions[room.currentQuestionIndex];
+
+  const handleLeaveClick = () => {
+    // Siswa tetap keluar seperti perilaku sebelumnya; guru/host diminta konfirmasi.
+    if (isHost) {
+      setShowEndConfirm(true);
+      return;
+    }
+    onLeaveRoom();
+  };
+
+  const handleConfirmLeave = () => {
+    setShowEndConfirm(false);
+    onLeaveRoom();
+  };
 
   const handleCopyPin = () => {
     navigator.clipboard.writeText(room.code);
@@ -121,7 +139,7 @@ export const HUD: React.FC<HUDProps> = ({
                 {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className={`w-3.5 h-3.5 ${isAdventure ? 'text-pink-500' : 'text-emerald-400'}`} />}
               </button>
               <button
-                onClick={onLeaveRoom}
+                onClick={handleLeaveClick}
                 className={`px-1.5 sm:px-2.5 py-1 text-[9px] sm:text-[11px] font-semibold ${leaveBtnClass} rounded-md sm:rounded-lg transition cursor-pointer whitespace-nowrap`}
               >
                 Keluar
@@ -222,6 +240,42 @@ export const HUD: React.FC<HUDProps> = ({
         )}
       </div>
 
+      {showEndConfirm && (
+        <div className="pointer-events-auto fixed inset-0 z-[100] flex items-center justify-center bg-slate-950/60 p-4 backdrop-blur-sm">
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="end-room-title"
+            className="w-full max-w-md rounded-2xl border border-pink-100 bg-white p-5 shadow-2xl sm:p-6"
+          >
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-100 text-rose-600">
+              <Trophy className="h-6 w-6" />
+            </div>
+            <h2 id="end-room-title" className="text-lg font-extrabold text-slate-900">
+              Akhiri permainan?
+            </h2>
+            <p className="mt-2 text-sm leading-relaxed text-slate-600">
+              Jika guru keluar, sesi permainan room ini akan diakhiri dan siswa tidak dapat melanjutkan permainan.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowEndConfirm(false)}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600 transition hover:bg-slate-50"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLeave}
+                className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-bold text-white shadow-lg shadow-rose-600/20 transition hover:bg-rose-700"
+              >
+                Ya, akhiri room
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
