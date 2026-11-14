@@ -25,6 +25,8 @@ interface AdventureCanvasProps {
   hideStartButton?: boolean;
   /** Mode guru: peta tampil penuh (tanpa zoom), tanpa kontrol gerak, dan tidak membuka peti. */
   spectator?: boolean;
+  /** false = game belum dimulai guru: pemain hanya boleh berjalan di Area Tunggu. Default true. */
+  gameStarted?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -249,6 +251,10 @@ const isOnPath = (x: number, y: number, allowedDistance = WALK_RADIUS) => {
 const isWalkable = (x: number, y: number) =>
   (x > WAIT_AREA.x1 && x < WAIT_AREA.x2 && y > WAIT_AREA.y1 && y < WAIT_AREA.y2) ||
   isOnPath(x, y);
+
+// Sebelum game dimulai, pemain hanya boleh berada di dalam Area Tunggu.
+const inWaitArea = (x: number, y: number) =>
+  x > WAIT_AREA.x1 && x < WAIT_AREA.x2 && y > WAIT_AREA.y1 && y < WAIT_AREA.y2;
 
 const drawStar = (
   ctx: CanvasRenderingContext2D,
@@ -621,9 +627,15 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   onStartGame,
   hideStartButton,
   spectator = false,
+  gameStarted = true,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const spectatorRef = useRef(spectator);
+  const gameStartedRef = useRef(gameStarted);
+
+  // Area yang boleh dijelajahi: Area Tunggu saja sebelum mulai, seluruh jalur setelah mulai.
+  const canWalk = (x: number, y: number) =>
+    gameStartedRef.current ? isWalkable(x, y) : inWaitArea(x, y);
   const questionOpenRef = useRef(isQuestionOpen);
   const playerRef = useRef<Player | null>(null);
   const playersRef = useRef(players);
@@ -640,6 +652,18 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   const finishFiredRef = useRef(false);
   const openedAtRef = useRef<Record<number, number>>({});
   const firstChestSync = useRef(true);
+
+  useEffect(() => {
+    gameStartedRef.current = gameStarted;
+    if (!gameStarted) {
+      // Batalkan tujuan klik lama agar tidak berjalan keluar area saat menunggu
+      const me = playerRef.current;
+      if (me) {
+        me.targetX = undefined;
+        me.targetY = undefined;
+      }
+    }
+  }, [gameStarted]);
 
   useEffect(() => {
     spectatorRef.current = spectator;
@@ -786,9 +810,10 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         let worldX = me.x * WORLD.width;
         let worldY = me.y * WORLD.height;
 
-        if (!isWalkable(worldX, worldY)) {
-          worldX = START.x;
-          worldY = START.y;
+        if (!canWalk(worldX, worldY)) {
+          // Sebar titik awal di Area Tunggu supaya banyak murid tidak bertumpuk
+          worldX = START.x + (Math.random() - 0.5) * 160;
+          worldY = START.y + (Math.random() - 0.5) * 60;
           me.x = worldX / WORLD.width;
           me.y = worldY / WORLD.height;
           onPositionUpdateRef.current(me.x, me.y, me.facing ?? 'down', 'none');
@@ -858,16 +883,16 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
           let nextY = worldY;
           let moved = false;
 
-          if (isWalkable(worldX + stepX, worldY + stepY)) {
+          if (canWalk(worldX + stepX, worldY + stepY)) {
             nextX = worldX + stepX;
             nextY = worldY + stepY;
             moved = true;
           } else if (usingKeys) {
             // Menyusuri tepi jalan (geser per sumbu)
-            if (stepX !== 0 && isWalkable(worldX + stepX, worldY)) {
+            if (stepX !== 0 && canWalk(worldX + stepX, worldY)) {
               nextX = worldX + stepX;
               moved = true;
-            } else if (stepY !== 0 && isWalkable(worldX, worldY + stepY)) {
+            } else if (stepY !== 0 && canWalk(worldX, worldY + stepY)) {
               nextY = worldY + stepY;
               moved = true;
             }
@@ -987,7 +1012,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         let py = player.y * WORLD.height;
 
         // Pemain lain yang posisinya masih di koordinat lama → tampilkan di area tunggu
-        if (player.id !== currentPlayerId && !isWalkable(px, py)) {
+        if (player.id !== currentPlayerId && !canWalk(px, py)) {
           px = START.x + ((order % 4) - 1.5) * 44;
           py = START.y + Math.floor(order / 4) * 34 - 10;
         }
@@ -1114,7 +1139,9 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       {!spectator && (
         <>
           <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[calc(100%-16px)] rounded-lg bg-black/60 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-xs text-white text-center whitespace-nowrap">
-            WASD / Panah: Bergerak · Klik: Tujuan
+            {gameStarted
+              ? 'WASD / Panah: Bergerak · Klik: Tujuan'
+              : 'Menunggu guru memulai permainan…'}
           </div>
 
           {/* D-pad: empat tombol seragam dan simetris */}
