@@ -1,6 +1,6 @@
 import React from 'react';
 import { GameRoom, Player, Question } from '../types/game';
-import { Volume2, VolumeX, Flame, Trophy, Copy, Check, Sparkles } from 'lucide-react';
+import { Volume2, VolumeX, Flame, Trophy, Copy, Check, Sparkles, LogOut } from 'lucide-react';
 
 interface HUDProps {
   room: GameRoom;
@@ -70,7 +70,7 @@ export const HUD: React.FC<HUDProps> = ({
         >
           {/* Room Code Badge */}
           <div
-            className={`pointer-events-auto flex h-8 sm:h-9 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md`}
+            className={`pointer-events-auto flex h-10 sm:h-9 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md`}
           >
             <span className={`shrink-0 text-[9px] sm:text-[11px] font-semibold ${labelClass}`}>PIN</span>
             <span className={`min-w-0 truncate font-black ${pinClass} tracking-wide text-[10px] sm:text-sm`}>{room.code}</span>
@@ -110,22 +110,28 @@ export const HUD: React.FC<HUDProps> = ({
               </div>
             )}
 
-            {/* Audio toggle & leave button */}
-            <div
-              className={`pointer-events-auto flex h-8 sm:h-9 shrink-0 items-center gap-0.5 ${pillClass} border px-0.5 rounded-lg sm:rounded-xl shadow-xl`}
-            >
+            {/* Tombol suara dan logout dipisah agar rapi dan konsisten */}
+            <div className="pointer-events-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
               <button
+                type="button"
                 onClick={onToggleMute}
-                className={`p-1 sm:p-1.5 rounded-md sm:rounded-lg ${muteBtnClass} transition cursor-pointer`}
+                aria-label={isMuted ? 'Nyalakan Suara' : 'Matikan Suara'}
                 title={isMuted ? 'Nyalakan Suara' : 'Matikan Suara'}
+                className={`flex h-10 w-10 sm:h-9 sm:w-9 items-center justify-center rounded-lg sm:rounded-xl border ${pillClass} shadow-xl backdrop-blur-md ${muteBtnClass} transition active:scale-95`}
               >
-                {isMuted ? <VolumeX className="w-3.5 h-3.5 text-red-400" /> : <Volume2 className={`w-3.5 h-3.5 ${isAdventure ? 'text-pink-500' : 'text-emerald-400'}`} />}
+                {isMuted
+                  ? <VolumeX className="h-4 w-4 text-red-400" />
+                  : <Volume2 className={`h-4 w-4 ${isAdventure ? 'text-pink-500' : 'text-emerald-400'}`} />}
               </button>
               <button
+                type="button"
                 onClick={onLeaveRoom}
-                className={`px-1.5 sm:px-2.5 py-1 text-[9px] sm:text-[11px] font-semibold ${leaveBtnClass} rounded-md sm:rounded-lg transition cursor-pointer whitespace-nowrap`}
+                aria-label="Logout"
+                title="Logout"
+                className={`flex h-10 w-10 sm:h-9 sm:w-auto items-center justify-center gap-1.5 rounded-lg sm:rounded-xl border border-rose-200 bg-white px-0 sm:px-3 text-[10px] sm:text-xs font-bold ${leaveBtnClass} shadow-xl transition active:scale-95`}
               >
-                Keluar
+                <LogOut className="h-4 w-4" />
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </div>
           </div>
