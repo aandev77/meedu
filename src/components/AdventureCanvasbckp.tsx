@@ -279,6 +279,7 @@ const drawStar = (
 /*  Air bergerak (sungai mengalir + riak di kolam)                     */
 /* ------------------------------------------------------------------ */
 let riverPath: Path2D | null = null;
+let riverOutsidePath: Path2D | null = null;
 
 const drawWater = (ctx: CanvasRenderingContext2D, t: number) => {
   // Garis tengah sungai pada gambar peta (koordinat dunia 1672 x 941)
@@ -288,10 +289,12 @@ const drawWater = (ctx: CanvasRenderingContext2D, t: number) => {
 
   // ---- Sungai: jangan menimpa jembatan ----
   ctx.save();
-  const outside = new Path2D();
-  outside.rect(0, 0, WORLD.width, WORLD.height);
-  outside.rect(150, 538, 108, 170);
-  ctx.clip(outside, 'evenodd');
+  if (!riverOutsidePath) {
+    riverOutsidePath = new Path2D();
+    riverOutsidePath.rect(0, 0, WORLD.width, WORLD.height);
+    riverOutsidePath.rect(150, 538, 108, 170);
+  }
+  ctx.clip(riverOutsidePath, 'evenodd');
 
   ctx.lineCap = 'round';
 
@@ -614,6 +617,24 @@ const drawChest = (
 /* ------------------------------------------------------------------ */
 /*  Komponen                                                           */
 /* ------------------------------------------------------------------ */
+/**
+ * Status gerak pemain lokal. Disimpan di ref (BUKAN state React) supaya gerakan
+ * 60 FPS tidak memicu render ulang aplikasi dan tidak tertimpa snapshot Firestore.
+ * Koordinat x/y dinormalisasi (0..1) seperti pada Player.
+ */
+interface LocalState {
+  x: number;
+  y: number;
+  facing: Player['facing'];
+  targetX?: number;
+  targetY?: number;
+  isJumping: boolean;
+  jumpOffset: number;
+}
+
+// Batasi DPR ke 2: layar 3x membuat kanvas 2,25x lebih besar tanpa terlihat lebih tajam.
+const getDpr = () => Math.min(window.devicePixelRatio || 1, 2);
+
 export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   players,
   currentPlayerId,
@@ -637,7 +658,10 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   const canWalk = (x: number, y: number) =>
     gameStartedRef.current ? isWalkable(x, y) : inWaitArea(x, y);
   const questionOpenRef = useRef(isQuestionOpen);
-  const playerRef = useRef<Player | null>(null);
+  const localRef = useRef<LocalState | null>(null);
+  // Posisi tampil pemain lain (koordinat dunia), dihaluskan menuju data terbaru
+  const displayRef = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const onJumpRef = useRef(onJump);
   const playersRef = useRef(players);
   const keys = useRef<Record<string, boolean>>({});
   const camera = useRef({ x: 0, y: 0 });
@@ -657,7 +681,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
     gameStartedRef.current = gameStarted;
     if (!gameStarted) {
       // Batalkan tujuan klik lama agar tidak berjalan keluar area saat menunggu
-      const me = playerRef.current;
+      const me = localRef.current;
       if (me) {
         me.targetX = undefined;
         me.targetY = undefined;
@@ -704,9 +728,28 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   }, [onReachFinish]);
 
   useEffect(() => {
+    onJumpRef.current = onJump;
+  }, [onJump]);
+
+  // Posisi pemain lokal hanya diambil sekali dari data awal. Setelah itu canvas yang
+  // memegang posisinya, sehingga snapshot Firestore lama tidak menarik karakter ke belakang.
+  useEffect(() => {
     playersRef.current = players;
-    playerRef.current =
-      players.find(player => player.id === currentPlayerId) ?? null;
+
+    const me = players.find(player => player.id === currentPlayerId);
+    if (!me) return;
+
+    if (!localRef.current) {
+      localRef.current = {
+        x: me.x,
+        y: me.y,
+        facing: me.facing,
+        targetX: undefined,
+        targetY: undefined,
+        isJumping: !!me.isJumping,
+        jumpOffset: me.jumpOffset || 0,
+      };
+    }
   }, [players, currentPlayerId]);
 
   // Keyboard
@@ -729,7 +772,13 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
 
       keys.current[key] = true;
 
-      if (event.code === 'Space') onJump();
+      if (event.code === 'Space' && !event.repeat) {
+        const local = localRef.current;
+        if (local && !local.isJumping && local.jumpOffset <= 0) {
+          local.isJumping = true;
+          onJumpRef.current();
+        }
+      }
     };
 
     const up = (event: KeyboardEvent) => {
@@ -749,7 +798,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       window.removeEventListener('keyup', up);
       window.removeEventListener('blur', clear);
     };
-  }, [onJump]);
+  }, []);
 
   // Render & game loop
   useEffect(() => {
@@ -768,7 +817,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
 
     const resize = () => {
       const rect = parent.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = getDpr();
       canvas.width = Math.max(1, rect.width * dpr);
       canvas.height = Math.max(1, rect.height * dpr);
     };
@@ -785,7 +834,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
 
-      const dpr = window.devicePixelRatio || 1;
+      const dpr = getDpr();
       const viewWidth = canvas.width / dpr;
       const viewHeight = canvas.height / dpr;
 
@@ -793,7 +842,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       // Map boleh terpotong; fokus utama adalah karakter tetap terlihat.
       // Mode guru: seluruh peta terlihat (tanpa zoom, tanpa terpotong).
       const isSpectator = spectatorRef.current;
-      const ZOOM = isSpectator ? 1 : 1.3;
+      const ZOOM = isSpectator ? 1 : 1.1;
       const baseScale = isSpectator
         ? Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height)
         : Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height);
@@ -803,7 +852,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const visibleW = viewWidth / scale;
       const visibleH = viewHeight / scale;
 
-      const me = playerRef.current;
+      const me = localRef.current;
 
       if (me) {
         // Posisi lama (dari dunia sebelumnya) / di luar jalur → pindahkan ke titik awal.
@@ -941,7 +990,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         // Kamera
         camera.current.x = Math.max(
           0,
-          Math.min(WORLD.width - visibleW, worldX - visibleW / 2)
+          Math.min(WORLD.width - visibleW, worldX - visibleW * 0.35)
         );
         camera.current.y = Math.max(
           0,
@@ -1007,17 +1056,50 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         });
       });
 
+      // Pemain lain digeser halus menuju posisi terbaru (data Firestore hanya datang
+      // beberapa kali per detik); pemain lokal memakai posisi dari ref.
+      const displayMap = displayRef.current;
+      const smoothing = 1 - Math.exp(-dt * 12);
+
       playersRef.current.forEach((player, order) => {
-        let px = player.x * WORLD.width;
-        let py = player.y * WORLD.height;
-
-        // Pemain lain yang posisinya masih di koordinat lama → tampilkan di area tunggu
-        if (player.id !== currentPlayerId && !canWalk(px, py)) {
-          px = START.x + ((order % 4) - 1.5) * 44;
-          py = START.y + Math.floor(order / 4) * 34 - 10;
-        }
-
         const isCurrent = player.id === currentPlayerId;
+        let px: number;
+        let py: number;
+        let drawable: Player = player;
+
+        if (isCurrent && me) {
+          px = me.x * WORLD.width;
+          py = me.y * WORLD.height;
+          drawable = {
+            ...player,
+            x: me.x,
+            y: me.y,
+            facing: me.facing,
+            isJumping: me.isJumping,
+            jumpOffset: me.jumpOffset,
+          };
+        } else {
+          let tx = player.x * WORLD.width;
+          let ty = player.y * WORLD.height;
+
+          // Pemain lain yang posisinya masih di koordinat lama → tampilkan di area tunggu
+          if (!canWalk(tx, ty)) {
+            tx = START.x + ((order % 4) - 1.5) * 44;
+            ty = START.y + Math.floor(order / 4) * 34 - 10;
+          }
+
+          let d = displayMap.get(player.id);
+          if (!d || Math.hypot(tx - d.x, ty - d.y) > 400) {
+            d = { x: tx, y: ty };
+            displayMap.set(player.id, d);
+          } else {
+            d.x += (tx - d.x) * smoothing;
+            d.y += (ty - d.y) * smoothing;
+          }
+
+          px = d.x;
+          py = d.y;
+        }
 
         entities.push({
           y: py,
@@ -1040,7 +1122,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
 
             drawAvatar(
               ctx,
-              player,
+              drawable,
               px,
               py - FOOT_OFFSET * AVATAR_SCALE,
               AVATAR_SCALE,
@@ -1066,7 +1148,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   // Klik untuk berjalan ke titik tujuan
   const handleClick = (event: React.MouseEvent<HTMLCanvasElement>) => {
     const canvas = canvasRef.current;
-    const me = playerRef.current;
+    const me = localRef.current;
 
     if (!canvas || !me) return;
     if (questionOpenRef.current || spectatorRef.current) return;
@@ -1117,7 +1199,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   );
 
   return (
-    <div className="relative w-full h-[clamp(360px,calc(100dvh-150px),780px)] overflow-hidden rounded-2xl border-4 border-amber-900 bg-green-600">
+    <div className="relative w-full h-[min(780px,70vh)] min-h-[400px] overflow-hidden rounded-2xl border-4 border-amber-900 bg-green-600">
       <canvas
         ref={canvasRef}
         onClick={handleClick}
