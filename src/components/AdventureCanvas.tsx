@@ -841,10 +841,16 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const viewWidth = canvas.width / dpr;
       const viewHeight = canvas.height / dpr;
 
-      // Guru: peta memenuhi lebar kanvas. Siswa: zoom sedikit lebih dekat agar
-      // objek permainan terlihat lebih besar; posisi peta tetap dipusatkan.
+      // Gunakan mode cover agar kanvas selalu terisi penuh tanpa bidang kosong.
+      // Siswa mendapat zoom lebih kuat; layar HP mendapat pembesaran ekstra.
       const isSpectator = spectatorRef.current;
-      const scale = (viewWidth / WORLD.width) * (isSpectator ? 1 : 1.12);
+      const isMobile = viewWidth < 640;
+      const coverScale = Math.max(
+        viewWidth / WORLD.width,
+        viewHeight / WORLD.height
+      );
+      const zoom = isSpectator ? 1 : (isMobile ? 1.75 : 1.45);
+      const scale = coverScale * zoom;
       scaleRef.current = scale;
 
       const visibleW = viewWidth / scale;
@@ -985,9 +991,16 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
           me.jumpOffset = Math.max(0, me.jumpOffset - 85 * dt);
         }
 
-        // Kamera dipusatkan agar zoom siswa tidak menempel ke salah satu sisi.
-        camera.current.x = Math.max(0, (WORLD.width - visibleW) / 2);
-        camera.current.y = (WORLD.height - visibleH) / 2;
+        // Kamera mengikuti pemain: saat pemain berjalan, area yang terlihat ikut bergeser.
+        // Ini penting pada HP karena bidang pandang lebih sempit.
+        camera.current.x = Math.max(
+          0,
+          Math.min(WORLD.width - visibleW, worldX - visibleW / 2)
+        );
+        camera.current.y = Math.max(
+          0,
+          Math.min(WORLD.height - visibleH, worldY - visibleH / 2)
+        );
       }
 
       // Mode guru: peta memenuhi lebar kanvas, tidak mengikuti karakter.
