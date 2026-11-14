@@ -1465,6 +1465,11 @@ useEffect(() => {
       streak: 0,
     };
 
+  // Guru pemilik room (dipakai untuk tombol Mulai Game & kontrol host)
+  const isRoomHost =
+    userRole === 'teacher' &&
+    currentRoom?.hostId === activePlayerId;
+
   // AUTH SCREEN
   if (authLoading) {
     return (
@@ -1519,8 +1524,8 @@ useEffect(() => {
         >
           {/* Host Bar */}
           {!isMapTest &&
-            userRole === 'teacher' &&
-            currentRoom.hostId === activePlayerId && (
+            currentRoom.mode !== 'adventure' &&
+            isRoomHost && (
               <div className="mb-3">
                 <HostControls
                   room={currentRoom}
@@ -1552,6 +1557,8 @@ useEffect(() => {
                 isQuestionOpen={isQuestionOpen}
                 completedChests={chestCompleted}
                 chestCount={adventureTotalChests}
+                onStartGame={isRoomHost ? handleStartGame : undefined}
+                hideStartButton={currentRoom.stage !== 'waiting'}
               />
             ) : (
               <ArenaCanvas
@@ -1560,26 +1567,6 @@ useEffect(() => {
                 onPositionUpdate={handlePositionUpdate}
                 onJump={handleLocalJump}
               />
-            )}
-
-            {/* Adventure Score */}
-            {currentRoom.mode === 'adventure' && (
-              <div className="absolute right-2 top-2 sm:right-4 sm:top-4 z-40 w-[clamp(104px,30%,176px)] max-w-[calc(100%-12px)] rounded-xl border border-amber-400/40 bg-gradient-to-br from-pink-50 via-white to-rose-100 px-2 py-1.5 sm:px-4 sm:py-3 text-slate-700 shadow-xl">
-                <div className="text-[8px] sm:text-xs font-bold leading-tight text-amber-500 break-words">
-                  ADVENTURE SCORE
-                </div>
-
-                <div className="mt-0.5 text-lg sm:text-3xl font-extrabold leading-tight tabular-nums">
-                  {Math.round(adventureTotalScore)}
-                  <span className="text-[9px] sm:text-sm text-slate-500">
-                    {' '} / 100
-                  </span>
-                </div>
-
-                <div className="mt-1 text-[8px] sm:text-xs leading-tight text-slate-500 break-words">
-                  Peti: {chestCompleted.length}/{adventureTotalChests}
-                </div>
-              </div>
             )}
 
             {/* In-game HUD */}

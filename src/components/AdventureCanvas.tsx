@@ -19,6 +19,10 @@ interface AdventureCanvasProps {
   chestCount: number;
   /** Opsional: dipanggil sekali saat semua peti selesai dan pemain sampai di bendera finis. */
   onReachFinish?: () => void;
+  /** Opsional: tombol "Mulai Game" di dalam peta (hanya tampil bila diisi, biasanya untuk host/guru). */
+  onStartGame?: () => void;
+  /** Opsional: sembunyikan tombol mulai (mis. game sudah berjalan). */
+  hideStartButton?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -612,6 +616,8 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   completedChests,
   chestCount,
   onReachFinish,
+  onStartGame,
+  hideStartButton,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const questionOpenRef = useRef(isQuestionOpen);
@@ -1067,6 +1073,17 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         onClick={handleClick}
         className="block w-full h-full cursor-crosshair"
       />
+
+      {/* Tombol mulai game (khusus host, di dalam peta) */}
+      {onStartGame && !hideStartButton && (
+        <button
+          type="button"
+          onClick={onStartGame}
+          className="absolute z-30 left-1/2 top-3 -translate-x-1/2 flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm sm:text-base font-extrabold text-white shadow-lg border-2 border-white/70 transition-transform hover:bg-emerald-600 active:scale-95"
+        >
+          ▶ Mulai Game
+        </button>
+      )}
 
       {/* Petunjuk kontrol responsif */}
       <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[calc(100%-16px)] rounded-lg bg-black/60 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-xs text-white text-center whitespace-nowrap">
