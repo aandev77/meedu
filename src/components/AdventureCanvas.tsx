@@ -842,7 +842,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       // Map boleh terpotong; fokus utama adalah karakter tetap terlihat.
       // Mode guru: seluruh peta terlihat (tanpa zoom, tanpa terpotong).
       const isSpectator = spectatorRef.current;
-      const ZOOM = isSpectator ? 1 : 1.3;
+      const ZOOM = isSpectator ? 1 : 1.1;
       const baseScale = isSpectator
         ? Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height)
         : Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height);
@@ -990,7 +990,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         // Kamera
         camera.current.x = Math.max(
           0,
-          Math.min(WORLD.width - visibleW, worldX - visibleW / 2)
+          Math.min(WORLD.width - visibleW, worldX - visibleW * 0.35)
         );
         camera.current.y = Math.max(
           0,
