@@ -630,21 +630,21 @@ Pembahasan: Gedung pencakar langit dapat tersambar petir puluhan kali setiap tah
                     onClick={() => handleAddQuestion('ox')}
                     className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1"
                   >
-                    <Plus className="w-3.5 h-3.5" /> + Soal OX (True/False)
+                    <Plus className="w-3.5 h-3.5" /> Soal OX (True/False)
                   </button>
 
                   <button
                     onClick={() => handleAddQuestion('multiple')}
                     className="px-3 py-1.5 bg-pink-50 hover:bg-pink-100 border border-pink-200 text-pink-700 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1"
                   >
-                    <Plus className="w-3.5 h-3.5" /> + Soal 4 Pilihan
+                    <Plus className="w-3.5 h-3.5" /> Soal Pilgan
                   </button>
 
                   <button
                     onClick={() => handleAddQuestion('essay')}
                     className="px-3 py-1.5 bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-700 rounded-xl text-xs font-semibold transition cursor-pointer flex items-center gap-1"
                   >
-                    <Plus className="w-3.5 h-3.5" /> + Soal Esai
+                    <Plus className="w-3.5 h-3.5" /> Soal Essai
                   </button>
                 </div>
               </div>
