@@ -841,15 +841,11 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const viewWidth = canvas.width / dpr;
       const viewHeight = canvas.height / dpr;
 
-      // Zoom sedikit agar kamera memiliki ruang mengikuti karakter pada sumbu X dan Y.
-      // Map boleh terpotong; fokus utama adalah karakter tetap terlihat.
-      // Mode guru: seluruh peta terlihat (tanpa zoom, tanpa terpotong).
+      // Selalu tampilkan seluruh peta agar tidak terpotong, baik untuk siswa maupun guru.
+      // Rasio peta dipertahankan; ruang sisa diisi warna latar.
       const isSpectator = spectatorRef.current;
-      const ZOOM = isSpectator ? 1 : 1.1;
-      const baseScale = isSpectator
-        ? Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height)
-        : Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height);
-      const scale = baseScale * ZOOM;
+      const baseScale = Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height);
+      const scale = baseScale;
       scaleRef.current = scale;
 
       const visibleW = viewWidth / scale;
@@ -990,15 +986,9 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
           me.jumpOffset = Math.max(0, me.jumpOffset - 85 * dt);
         }
 
-        // Kamera
-        camera.current.x = Math.max(
-          0,
-          Math.min(WORLD.width - visibleW, worldX - visibleW * 0.35)
-        );
-        camera.current.y = Math.max(
-          0,
-          Math.min(WORLD.height - visibleH, worldY - visibleH / 2)
-        );
+        // Kamera tetap menampilkan seluruh peta; tidak mengikuti pemain dengan zoom.
+        camera.current.x = (WORLD.width - visibleW) / 2;
+        camera.current.y = (WORLD.height - visibleH) / 2;
       }
 
       // Mode guru: peta di tengah kanvas, tidak mengikuti karakter.
