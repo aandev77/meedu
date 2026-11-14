@@ -32,6 +32,7 @@ import { AdventureQuestionModal } from './components/AdventureQuestionModal';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './firebase';
 import { LoginView } from './components/LoginView';
+import Toast from './utils/toast';
 import {
   createRoom,
   getRoom,
@@ -66,6 +67,13 @@ const BOT_NAMES = [
 /*  Sesi room aktif: disimpan agar refresh browser tidak kembali ke    */
 /*  lobi (berlaku untuk guru maupun murid pada room Firestore).        */
 /* ------------------------------------------------------------------ */
+// Notifikasi dalam aplikasi (pengganti alert bawaan browser yang menampilkan alamat situs)
+const notify = (message: string) =>
+  Toast.fire({
+    icon: /berhasil/i.test(message) ? 'success' : 'error',
+    title: message,
+  });
+
 const SESSION_KEY = 'meedu_active_session';
 
 interface SavedSession {
@@ -852,12 +860,12 @@ useEffect(() => {
     mode: GameMode
   ) => {
     if (!user || userRole !== 'teacher') {
-      alert('Hanya guru yang dapat membuat room.');
+      notify('Hanya guru yang dapat membuat room.');
       return;
     }
 
     if (!pack.questions.length) {
-      alert('Kuis belum memiliki soal. Tambahkan soal terlebih dahulu.');
+      notify('Kuis belum memiliki soal. Tambahkan soal terlebih dahulu.');
       return;
     }
 
@@ -914,11 +922,11 @@ useEffect(() => {
         code: createdCode,
       });
 
-      alert(`Room berhasil dibuat! PIN: ${createdCode}`);
+      notify(`Room berhasil dibuat! PIN: ${createdCode}`);
     } catch (error) {
       console.error('Gagal membuat room:', error);
 
-      alert(
+      notify(
         error instanceof Error
           ? error.message
           : 'Gagal membuat room. Periksa koneksi dan Firestore Rules.'
@@ -929,12 +937,12 @@ useEffect(() => {
   // Tes peta Adventure secara lokal
   const handleTestMap = (pack: QuizPack) => {
     if (!user || userRole !== 'teacher') {
-      alert('Hanya guru yang dapat melakukan tes peta.');
+      notify('Hanya guru yang dapat melakukan tes peta.');
       return;
     }
 
     if (!pack.questions.length) {
-      alert('Paket kuis belum memiliki soal.');
+      notify('Paket kuis belum memiliki soal.');
       return;
     }
 
@@ -977,7 +985,7 @@ useEffect(() => {
     const pack = quizPacks[0];
 
     if (!pack || !pack.questions.length) {
-      alert(
+      notify(
         'Belum ada paket kuis. Buat atau impor paket kuis terlebih dahulu.'
       );
       return;
@@ -1040,7 +1048,7 @@ useEffect(() => {
     name: string
   ) => {
     if (!user || userRole !== 'student') {
-      alert('Hanya siswa yang dapat bergabung ke room.');
+      notify('Hanya siswa yang dapat bergabung ke room.');
       return;
     }
 
@@ -1063,7 +1071,7 @@ useEffect(() => {
       const room = await getRoom(pin);
 
       if (!room) {
-        alert('Room tidak ditemukan. Periksa kembali PIN.');
+        notify('Room tidak ditemukan. Periksa kembali PIN.');
         return;
       }
 
@@ -1072,7 +1080,7 @@ useEffect(() => {
       const updatedRoom = await getRoom(pin);
 
       if (!updatedRoom) {
-        alert('Gagal mengambil data room.');
+        notify('Gagal mengambil data room.');
         return;
       }
 
@@ -1088,7 +1096,7 @@ useEffect(() => {
     } catch (error) {
       console.error('Gagal bergabung ke room:', error);
 
-      alert(
+      notify(
         error instanceof Error
           ? error.message
           : 'Gagal bergabung ke room. Periksa koneksi Firestore.'
@@ -1155,7 +1163,7 @@ useEffect(() => {
       triggerBotDecisions(updated, firstQ);
     } catch (error) {
       console.error('Gagal memulai permainan:', error);
-      alert('Gagal memulai permainan. Periksa koneksi Firestore.');
+      notify('Gagal memulai permainan. Periksa koneksi Firestore.');
     }
   };
 
@@ -1381,7 +1389,7 @@ useEffect(() => {
       });
     } catch (error) {
       console.error('Gagal menyimpan hasil permainan:', error);
-      alert('Gagal menyimpan hasil permainan ke Firestore.');
+      notify('Gagal menyimpan hasil permainan ke Firestore.');
     }
   };
 
@@ -1472,7 +1480,7 @@ useEffect(() => {
       triggerBotDecisions(nextRoom, nextQ);
     } catch (error) {
       console.error('Gagal berpindah soal:', error);
-      alert('Gagal berpindah soal. Periksa koneksi Firestore.');
+      notify('Gagal berpindah soal. Periksa koneksi Firestore.');
     }
   };
 
@@ -1734,7 +1742,7 @@ useEffect(() => {
         isMuted={isMuted}
         onToggleMute={handleToggleMute}
         activeRoomCode={currentRoom?.code}
-        hideActions={!!currentRoom && currentRoom.stage !== 'waiting'}
+        hideActions={!!currentRoom}
       />
 
       {/* MAIN SCREEN SWITCHER */}
