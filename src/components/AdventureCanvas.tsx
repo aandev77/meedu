@@ -23,6 +23,8 @@ interface AdventureCanvasProps {
   onStartGame?: () => void;
   /** Opsional: sembunyikan tombol mulai (mis. game sudah berjalan). */
   hideStartButton?: boolean;
+  /** Mode guru: peta tampil penuh (tanpa zoom), tanpa kontrol gerak, dan tidak membuka peti. */
+  spectator?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -618,8 +620,10 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   onReachFinish,
   onStartGame,
   hideStartButton,
+  spectator = false,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const spectatorRef = useRef(spectator);
   const questionOpenRef = useRef(isQuestionOpen);
   const playerRef = useRef<Player | null>(null);
   const playersRef = useRef(players);
@@ -636,6 +640,11 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   const finishFiredRef = useRef(false);
   const openedAtRef = useRef<Record<number, number>>({});
   const firstChestSync = useRef(true);
+
+  useEffect(() => {
+    spectatorRef.current = spectator;
+    if (spectator) keys.current = {};
+  }, [spectator]);
 
   useEffect(() => {
     questionOpenRef.current = isQuestionOpen;
@@ -679,6 +688,8 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
   // Keyboard
   useEffect(() => {
     const down = (event: KeyboardEvent) => {
+      if (spectatorRef.current) return;
+
       if (['INPUT', 'TEXTAREA'].includes((event.target as HTMLElement).tagName)) {
         return;
       }
@@ -756,11 +767,12 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
 
       // Zoom sedikit agar kamera memiliki ruang mengikuti karakter pada sumbu X dan Y.
       // Map boleh terpotong; fokus utama adalah karakter tetap terlihat.
-      const ZOOM = 1.3;
-      const baseScale = Math.max(
-        viewWidth / WORLD.width,
-        viewHeight / WORLD.height
-      );
+      // Mode guru: seluruh peta terlihat (tanpa zoom, tanpa terpotong).
+      const isSpectator = spectatorRef.current;
+      const ZOOM = isSpectator ? 1 : 1.3;
+      const baseScale = isSpectator
+        ? Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height)
+        : Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height);
       const scale = baseScale * ZOOM;
       scaleRef.current = scale;
 
@@ -797,7 +809,8 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
           }
         });
 
-        const detectedChest = nearestDistance <= 90 ? nearestChest : null;
+        const detectedChest =
+          !isSpectator && nearestDistance <= 90 ? nearestChest : null;
 
         if (nearbyChestRef.current !== detectedChest) {
           nearbyChestRef.current = detectedChest;
@@ -809,7 +822,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         let dy = 0;
         let usingKeys = false;
 
-        if (questionOpenRef.current) {
+        if (questionOpenRef.current || isSpectator) {
           keys.current = {};
           me.targetX = undefined;
           me.targetY = undefined;
@@ -883,6 +896,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
 
         // Finis: semua peti selesai lalu menyentuh bendera
         if (
+          !isSpectator &&
           !finishFiredRef.current &&
           completedChestsRef.current.length >= chestCount &&
           Math.hypot(worldX - FINISH.x, (worldY - FINISH.y) * 1.3) < 90
@@ -910,7 +924,18 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
         );
       }
 
+      // Mode guru: peta di tengah kanvas, tidak mengikuti karakter.
+      if (isSpectator) {
+        camera.current.x = (WORLD.width - visibleW) / 2;
+        camera.current.y = (WORLD.height - visibleH) / 2;
+      }
+
       // ---------- Gambar ----------
+      // Bersihkan seluruh kanvas dulu (ada sisa ruang di sekitar peta pada mode penuh).
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = '#5aa83a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
       ctx.setTransform(
         dpr * scale,
         0,
@@ -1019,7 +1044,7 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
     const me = playerRef.current;
 
     if (!canvas || !me) return;
-    if (questionOpenRef.current) return;
+    if (questionOpenRef.current || spectatorRef.current) return;
 
     const rect = canvas.getBoundingClientRect();
     const scale = scaleRef.current || 1;
@@ -1071,32 +1096,36 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       <canvas
         ref={canvasRef}
         onClick={handleClick}
-        className="block w-full h-full cursor-crosshair"
+        className={`block w-full h-full ${spectator ? 'cursor-default' : 'cursor-crosshair'}`}
       />
 
-      {/* Tombol mulai game (khusus host, di dalam peta) */}
+      {/* Tombol mulai game (khusus host, di dalam peta, rata kanan) */}
       {onStartGame && !hideStartButton && (
         <button
           type="button"
           onClick={onStartGame}
-          className="absolute z-30 left-1/2 top-3 -translate-x-1/2 flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm sm:text-base font-extrabold text-white shadow-lg border-2 border-white/70 transition-transform hover:bg-emerald-600 active:scale-95"
+          className="absolute z-30 right-3 top-3 flex items-center gap-2 rounded-xl bg-emerald-500 px-5 py-2.5 text-sm sm:text-base font-extrabold text-white shadow-lg border-2 border-white/70 transition-transform hover:bg-emerald-600 active:scale-95"
         >
           ▶ Mulai Game
         </button>
       )}
 
-      {/* Petunjuk kontrol responsif */}
-      <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[calc(100%-16px)] rounded-lg bg-black/60 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-xs text-white text-center whitespace-nowrap">
-        WASD / Panah: Bergerak · Klik: Tujuan
-      </div>
+      {/* Petunjuk kontrol & D-pad hanya untuk siswa (guru tidak bergerak) */}
+      {!spectator && (
+        <>
+          <div className="pointer-events-none absolute bottom-2 left-1/2 -translate-x-1/2 max-w-[calc(100%-16px)] rounded-lg bg-black/60 px-2.5 py-1.5 sm:px-3 sm:py-2 text-[9px] sm:text-xs text-white text-center whitespace-nowrap">
+            WASD / Panah: Bergerak · Klik: Tujuan
+          </div>
 
-      {/* D-pad: empat tombol seragam dan simetris */}
-      <div className="absolute z-30 right-2 bottom-12 sm:right-5 sm:bottom-16 grid grid-cols-3 grid-rows-3 w-[clamp(108px,30vw,156px)] aspect-square gap-1 sm:gap-2">
-        {dirButton('arrowup', '↑', 'Atas', 'col-start-2 row-start-1')}
-        {dirButton('arrowleft', '←', 'Kiri', 'col-start-1 row-start-2')}
-        {dirButton('arrowright', '→', 'Kanan', 'col-start-3 row-start-2')}
-        {dirButton('arrowdown', '↓', 'Bawah', 'col-start-2 row-start-3')}
-      </div>
+          {/* D-pad: empat tombol seragam dan simetris */}
+          <div className="absolute z-30 right-2 bottom-12 sm:right-5 sm:bottom-16 grid grid-cols-3 grid-rows-3 w-[clamp(108px,30vw,156px)] aspect-square gap-1 sm:gap-2">
+            {dirButton('arrowup', '↑', 'Atas', 'col-start-2 row-start-1')}
+            {dirButton('arrowleft', '←', 'Kiri', 'col-start-1 row-start-2')}
+            {dirButton('arrowright', '→', 'Kanan', 'col-start-3 row-start-2')}
+            {dirButton('arrowdown', '↓', 'Bawah', 'col-start-2 row-start-3')}
+          </div>
+        </>
+      )}
     </div>
   );
 };

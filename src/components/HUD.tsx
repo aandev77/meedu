@@ -34,14 +34,25 @@ export const HUD: React.FC<HUDProps> = ({
   const timePercent = room.totalTime > 0 ? (room.timeLeft / room.totalTime) * 100 : 0;
   const isTimeUrgent = room.timeLeft <= 5 && room.stage === 'answering';
 
+  // Mode Adventure: tanpa skor/peringkat, PIN + suara + keluar dirapikan rata kiri.
+  const isAdventure = room.mode === 'adventure';
+
   return (
-    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 z-20">
+    <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-3 sm:p-4 z-20">
       {/* TOP SECTION: BAR & QUESTION CARD DOCKED AT TOP */}
-      <div className="flex flex-col gap-3 pointer-events-auto max-w-4xl w-full mx-auto">
+      <div
+        className={`flex flex-col gap-3 w-full ${
+          isAdventure ? 'pointer-events-none' : 'pointer-events-auto max-w-4xl mx-auto'
+        }`}
+      >
         {/* Top Info Bar */}
-        <div className="flex flex-wrap items-start justify-between gap-1.5 sm:gap-3">
+        <div
+          className={`flex flex-wrap items-center gap-1.5 sm:gap-3 ${
+            isAdventure ? 'justify-start' : 'items-start justify-between'
+          }`}
+        >
           {/* Room Code Badge */}
-          <div className="flex min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 bg-slate-900/90 border border-slate-700/80 px-2 sm:px-3.5 py-1.5 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md">
+          <div className="pointer-events-auto flex h-8 sm:h-9 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 bg-slate-900/90 border border-slate-700/80 px-2 sm:px-3.5 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md">
             <span className="shrink-0 text-[9px] sm:text-[11px] font-semibold text-slate-400">PIN</span>
             <span className="min-w-0 truncate font-black text-indigo-300 tracking-wide text-[10px] sm:text-sm">{room.code}</span>
             <button
@@ -54,28 +65,34 @@ export const HUD: React.FC<HUDProps> = ({
           </div>
 
           {/* Player Stats & Rank */}
-          <div className="flex min-w-0 flex-wrap items-center justify-end gap-1 sm:gap-2.5">
-            {currentPlayer.streak > 1 && (
+          <div
+            className={`flex min-w-0 flex-wrap items-center gap-1 sm:gap-2.5 ${
+              isAdventure ? 'justify-start' : 'justify-end'
+            }`}
+          >
+            {!isAdventure && currentPlayer.streak > 1 && (
               <div className="flex shrink-0 items-center gap-1 px-1.5 sm:gap-1.5 sm:px-3 py-1 bg-gradient-to-r from-orange-500/20 to-red-500/20 border border-orange-500/40 rounded-lg sm:rounded-xl text-orange-400 font-bold text-[9px] sm:text-xs shadow-md animate-pulse">
                 <Flame className="w-3.5 h-3.5 text-orange-400" />
                 <span>x{currentPlayer.streak} Streak!</span>
               </div>
             )}
 
-            <div className="flex shrink-0 items-center gap-1 sm:gap-2 bg-slate-900/90 border border-slate-700/80 px-1.5 sm:px-3 py-1 rounded-lg sm:rounded-xl shadow-xl backdrop-blur-md">
-              <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
-              <div className="flex items-center gap-1">
-                <span className="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase">
-                  #{myRank}
-                </span>
-                <span className="text-[9px] sm:text-xs font-black text-white tabular-nums whitespace-nowrap">
-                  {currentPlayer.score.toLocaleString()} pts
-                </span>
+            {!isAdventure && (
+              <div className="flex shrink-0 items-center gap-1 sm:gap-2 bg-slate-900/90 border border-slate-700/80 px-1.5 sm:px-3 py-1 rounded-lg sm:rounded-xl shadow-xl backdrop-blur-md">
+                <Trophy className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-amber-400" />
+                <div className="flex items-center gap-1">
+                  <span className="text-[8px] sm:text-[10px] text-slate-400 font-bold uppercase">
+                    #{myRank}
+                  </span>
+                  <span className="text-[9px] sm:text-xs font-black text-white tabular-nums whitespace-nowrap">
+                    {currentPlayer.score.toLocaleString()} pts
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Audio toggle & leave button */}
-            <div className="flex shrink-0 items-center gap-0.5 bg-slate-900/90 border border-slate-700/80 p-0.5 rounded-lg sm:rounded-xl shadow-xl">
+            <div className="pointer-events-auto flex h-8 sm:h-9 shrink-0 items-center gap-0.5 bg-slate-900/90 border border-slate-700/80 px-0.5 rounded-lg sm:rounded-xl shadow-xl">
               <button
                 onClick={onToggleMute}
                 className="p-1 sm:p-1.5 rounded-md sm:rounded-lg text-slate-300 hover:text-white hover:bg-slate-800 transition cursor-pointer"

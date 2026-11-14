@@ -1557,6 +1557,7 @@ useEffect(() => {
                 isQuestionOpen={isQuestionOpen}
                 completedChests={chestCompleted}
                 chestCount={adventureTotalChests}
+                spectator={userRole === 'teacher' && !isMapTest}
                 onStartGame={isRoomHost ? handleStartGame : undefined}
                 hideStartButton={currentRoom.stage !== 'waiting'}
               />
