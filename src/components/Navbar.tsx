@@ -66,7 +66,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   return (
     <header className="sticky top-0 z-30 w-full bg-white border-b border-pink-100 shadow-sm">
       <div className="max-w-7xl mx-auto px-3 sm:px-5 lg:px-6">
-        <div className="flex flex-col items-stretch gap-2 py-2 sm:min-h-[68px] sm:flex-row sm:items-center sm:justify-between sm:gap-3 sm:py-0">
+        {/* Diubah dari flex-col menjadi flex-row agar sejajar di semua ukuran layar */}
+        <div className="flex flex-row items-center justify-between py-2 sm:min-h-[68px] sm:gap-3 sm:py-0">
 
           {/* BRAND */}
           <div className="flex items-center gap-2.5 min-w-0">
@@ -87,7 +88,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           {/* ACTIONS (disembunyikan saat permainan berlangsung) */}
           {!hideActions && (
-          <nav className="flex w-full items-center justify-between gap-1 sm:w-auto sm:justify-end sm:gap-2">
+          <nav className="flex items-center justify-end gap-1 sm:gap-2">
 
             {/* TEACHER ACTION */}
             {isTeacher && (
@@ -114,8 +115,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                 <span className="hidden sm:inline">Kustom Avatar</span>
               </button>
             )}
-
-
 
             {/* ROOM PIN */}
             {activeRoomCode && (
@@ -238,7 +237,6 @@ export const Navbar: React.FC<NavbarProps> = ({
                         </span>
                       </div>
                     </div>
-
 
                   </div>
                 </>
