@@ -1,5 +1,6 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -230,6 +231,22 @@ export const updatePlayer = async (
       `room.players.${playerId}.update`
     )
   );
+};
+
+// Menghapus satu pemain dari room (dipakai saat murid keluar di tengah game)
+export const removePlayer = async (
+  roomCode: string,
+  playerId: string
+) => {
+  const playerRef = doc(
+    db,
+    "rooms",
+    roomCode.trim(),
+    "players",
+    playerId
+  );
+
+  await deleteDoc(playerRef);
 };
 
 // Mendengarkan perubahan room secara realtime

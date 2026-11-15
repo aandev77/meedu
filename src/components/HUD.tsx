@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { GameRoom, Player, Question } from '../types/game';
 import { Volume2, VolumeX, Flame, Trophy, Copy, Check, Sparkles, LogOut } from 'lucide-react';
 
@@ -254,9 +255,10 @@ export const HUD: React.FC<HUDProps> = ({
       </div>
 
       {/* DIALOG KONFIRMASI KELUAR / AKHIRI ROOM */}
-      {showLeaveConfirm && (
+      {/* Dirender ke document.body agar tidak tertutup D-pad / canvas */}
+      {showLeaveConfirm && createPortal(
         <div
-          className="pointer-events-auto absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
           onClick={() => setShowLeaveConfirm(false)}
         >
           <div
@@ -312,7 +314,8 @@ export const HUD: React.FC<HUDProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

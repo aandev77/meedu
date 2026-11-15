@@ -41,6 +41,7 @@ import {
   subscribePlayers,
   updateRoom,
   updatePlayer,
+  removePlayer,
   generateRoomCode as generateUniqueRoomCode,
 } from './services/roomService';
 
@@ -880,6 +881,24 @@ useEffect(() => {
     setIsMapTest(false);
     setIsLocalRoom(false);
     resetAdventureProgress();
+  };
+
+  // Murid keluar di tengah game: hapus datanya dari Firestore agar avatarnya
+  // hilang dari peta guru. Jika game sudah selesai (podium), data dipertahankan
+  // supaya skor tetap terlihat oleh guru.
+  const handleLeaveAsPlayer = async () => {
+    const room = currentRoom;
+    const isFinished = room?.stage === 'podium' || showAdventurePodium;
+
+    if (room && user && !isLocalRoom && !isRoomHost && !isFinished) {
+      try {
+        await removePlayer(room.code, user.uid);
+      } catch (error) {
+        console.error('Gagal menghapus pemain dari room:', error);
+      }
+    }
+
+    handleLeaveRoom();
   };
 
   // Guru mengakhiri room: tandai room selesai di Firestore agar semua murid
@@ -2003,7 +2022,7 @@ useEffect(() => {
             <HUD
               room={currentRoom}
               currentPlayer={currentPlayer}
-              onLeaveRoom={handleLeaveRoom}
+              onLeaveRoom={handleLeaveAsPlayer}
               onEndRoom={handleEndRoom}
               isHost={isRoomHost}
               isMuted={isMuted}

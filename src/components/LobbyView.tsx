@@ -151,7 +151,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                       );
                       setJoinError('');
                     }}
-                    placeholder="Masukkan 4–6 digit PIN"
+                    placeholder="Masukkan PIN"
                     className={`w-full px-4 py-4 rounded-xl bg-[#FFFAFC] border text-center text-xl sm:text-2xl font-bold tracking-[0.35em] text-pink-600 placeholder:text-slate-300 placeholder:text-sm placeholder:tracking-normal focus:outline-none focus:ring-2 focus:ring-pink-200 focus:border-pink-400 transition ${
                       joinError ? 'border-red-300' : 'border-pink-200'
                     }`}
