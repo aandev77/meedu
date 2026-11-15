@@ -289,8 +289,8 @@ export const HUD: React.FC<HUDProps> = ({
               className={`mt-1.5 text-sm leading-relaxed ${isAdventure ? 'text-slate-500' : 'text-slate-400'}`}
             >
               {isHost
-                ? 'Room akan ditutup untuk semua murid dan permainan berhenti. Tindakan ini tidak bisa dibatalkan.'
-                : 'Kamu akan meninggalkan permainan ini. Kamu bisa bergabung lagi dengan PIN yang sama jika room masih berjalan.'}
+                ? 'Room akan ditutup untuk semua murid dan permainan berhenti.'
+                : 'Kamu akan meninggalkan permainan ini.'}
             </p>
             <div className="mt-4 flex gap-2">
               <button
@@ -310,7 +310,7 @@ export const HUD: React.FC<HUDProps> = ({
                 onClick={handleConfirmLeave}
                 className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-rose-500 active:scale-95"
               >
-                {isHost ? 'Akhiri room' : 'Keluar'}
+                {isHost ? 'Keluar' : 'Keluar'}
               </button>
             </div>
           </div>
