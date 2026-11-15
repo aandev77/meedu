@@ -25,7 +25,6 @@ export const HUD: React.FC<HUDProps> = ({
   isMuted,
   onToggleMute,
 }) => {
-  const [copied, setCopied] = React.useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
   const [showQr, setShowQr] = React.useState(false);
   const [linkCopied, setLinkCopied] = React.useState(false);
@@ -53,12 +52,6 @@ export const HUD: React.FC<HUDProps> = ({
   };
   const currentQuestion: Question | undefined = room.quizPack.questions[room.currentQuestionIndex];
 
-  const handleCopyPin = () => {
-    navigator.clipboard.writeText(room.code);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleCopyJoinLink = () => {
     navigator.clipboard.writeText(buildJoinUrl(room.code));
     setLinkCopied(true);
@@ -82,9 +75,6 @@ export const HUD: React.FC<HUDProps> = ({
     : 'bg-slate-900/90 border-slate-700/80';
   const labelClass = isAdventure ? 'text-pink-400' : 'text-slate-400';
   const pinClass = isAdventure ? 'text-pink-600' : 'text-indigo-300';
-  const iconBtnClass = isAdventure
-    ? 'text-pink-500 hover:text-pink-700 hover:bg-pink-50'
-    : 'text-slate-400 hover:text-white hover:bg-slate-800';
   const muteBtnClass = isAdventure
     ? 'text-pink-500 hover:text-pink-700 hover:bg-pink-50'
     : 'text-slate-300 hover:text-white hover:bg-slate-800';
@@ -106,22 +96,7 @@ export const HUD: React.FC<HUDProps> = ({
             isAdventure ? 'items-center justify-start sm:gap-2' : 'items-start justify-between sm:gap-3'
           }`}
         >
-          {/* Room Code Badge + tombol QR */}
-          <div className="flex min-w-0 max-w-[min(66%,320px)] items-center gap-1.5 sm:gap-2">
-          <div
-            className={`pointer-events-auto flex h-10 sm:h-11 min-w-0 flex-1 items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl shadow-xl backdrop-blur-md`}
-          >
-            <span className={`shrink-0 text-[9px] sm:text-[11px] font-semibold ${labelClass}`}>PIN</span>
-            <span className={`min-w-0 truncate font-black ${pinClass} tracking-wide text-[10px] sm:text-sm`}>{room.code}</span>
-            <button
-              onClick={handleCopyPin}
-              className={`shrink-0 p-1 rounded-lg ${iconBtnClass} transition cursor-pointer`}
-              title="Salin PIN"
-            >
-              {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-            </button>
-          </div>
-
+          {/* Tombol QR Code (PIN ada di dalam dialog QR) */}
           <button
             type="button"
             onClick={() => setShowQr(true)}
@@ -131,7 +106,6 @@ export const HUD: React.FC<HUDProps> = ({
           >
             <QrCode className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
-          </div>
 
           {/* Player Stats & Rank */}
           <div
