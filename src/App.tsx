@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Trash2, X, AlertTriangle } from 'lucide-react';
+import { Trash2, X, AlertTriangle, Download } from 'lucide-react';
 import {
   AvatarConfig,
   GameMode,
@@ -34,6 +34,7 @@ import { auth } from './firebase';
 import { LoginView } from './components/LoginView';
 import { SplashScreen } from './components/SplashScreen';
 import Toast from './utils/toast';
+import { exportScoresPdf } from './utils/exportScoresPdf';
 import {
   createRoom,
   getRoom,
@@ -884,6 +885,29 @@ useEffect(() => {
     setIsMapTest(false);
     setIsLocalRoom(false);
     resetAdventureProgress();
+  };
+
+  // Daftar siswa (tanpa guru & bot) terurut dari skor tertinggi
+  const getScoreStudents = () =>
+    (currentRoom?.players ?? [])
+      .filter((player) => !player.isHost && !player.isBot)
+      .sort((a, b) => (b.score || 0) - (a.score || 0));
+
+  const handleExportScoresPdf = () => {
+    if (!currentRoom) return;
+
+    try {
+      exportScoresPdf(
+        currentRoom.code,
+        getScoreStudents().map((student) => ({
+          name: student.name,
+          score: Math.round(student.score || 0),
+        }))
+      );
+    } catch (error) {
+      console.error('Gagal membuat PDF:', error);
+      notify('Gagal membuat PDF. Coba lagi.');
+    }
   };
 
   // Murid keluar di tengah game: hapus datanya dari Firestore agar avatarnya
@@ -2077,9 +2101,7 @@ useEffect(() => {
                 </header>
                 <div className="max-h-[65vh] overflow-y-auto p-4">
                   {(() => {
-                    const students = currentRoom.players
-                      .filter((player) => !player.isHost && !player.isBot)
-                      .sort((a, b) => (b.score || 0) - (a.score || 0));
+                    const students = getScoreStudents();
                     return students.length === 0 ? (
                       <p className="py-10 text-center text-sm text-slate-500">Belum ada siswa yang bergabung.</p>
                     ) : (
@@ -2098,6 +2120,17 @@ useEffect(() => {
                     );
                   })()}
                 </div>
+                <footer className="border-t border-slate-100 p-4">
+                  <button
+                    type="button"
+                    onClick={handleExportScoresPdf}
+                    disabled={getScoreStudents().length === 0}
+                    className="flex w-full items-center justify-center gap-2 rounded-xl bg-pink-600 px-4 py-2.5 text-sm font-bold text-white shadow-md transition hover:bg-pink-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <Download className="h-4 w-4" />
+                    Unduh PDF
+                  </button>
+                </footer>
               </section>
             </div>
           )}
