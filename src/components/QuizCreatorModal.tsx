@@ -21,6 +21,80 @@ import {
   parseQuestionsFromText,
 } from '../utils/documentParser';
 
+type FormatExampleKey = 'multiple' | 'ox' | 'essay';
+
+const FORMAT_HEADER = `DOKUMEN KUIS MEEDU
+Judul: Dasar-Dasar Akuntansi | Kategori: Akuntansi`;
+
+const FORMAT_EXAMPLES: Record<FormatExampleKey, { label: string; text: string }> = {
+  multiple: {
+    label: 'Pilihan Ganda',
+    text: `SOAL UTAMA 1 — PILIHAN GANDA
+ID: UTAMA-01 JENIS: PILIHAN GANDA
+Pertanyaan: Persamaan dasar akuntansi yang benar adalah ...
+A. Aset = Liabilitas + Ekuitas
+B. Aset = Liabilitas - Ekuitas
+C. Ekuitas = Aset + Liabilitas
+D. Liabilitas = Aset + Ekuitas
+Kunci Jawaban: A
+Pembahasan: Total aset sama dengan total liabilitas ditambah ekuitas.
+
+SOAL CADANGAN UNTUK UTAMA-01
+CADANGAN-01-1 | JENIS: PILIHAN GANDA
+Pertanyaan: Jika aset Rp15.000.000 dan liabilitas Rp5.000.000, berapakah ekuitasnya?
+A. Rp5.000.000
+B. Rp10.000.000
+C. Rp15.000.000
+D. Rp20.000.000
+Kunci: B
+Pembahasan: Ekuitas = Rp15.000.000 - Rp5.000.000 = Rp10.000.000.
+
+(lanjutkan CADANGAN-01-2 dan CADANGAN-01-3 dengan format yang sama)`,
+  },
+  ox: {
+    label: 'OX (Benar/Salah)',
+    text: `SOAL UTAMA 2 — OX
+ID: UTAMA-02 JENIS: OX
+Pertanyaan: Kas yang diterima perusahaan dari pelanggan atas jasa yang telah diberikan dapat menambah aset perusahaan.
+Kunci Jawaban: O (Benar)
+Pembahasan: Penerimaan kas meningkatkan aset perusahaan karena jumlah kas yang dimiliki bertambah.
+
+SOAL CADANGAN UNTUK UTAMA-02
+CADANGAN-02-1 | JENIS: OX
+Pertanyaan: Pembelian perlengkapan secara tunai menyebabkan kas perusahaan bertambah.
+Kunci: X (Salah)
+Pembahasan: Pembelian tunai mengurangi kas dan menambah perlengkapan.
+
+(lanjutkan CADANGAN-02-2 dan CADANGAN-02-3 dengan format yang sama)`,
+  },
+  essay: {
+    label: 'Esai',
+    text: `SOAL UTAMA 3 — ESAI
+ID: UTAMA-03 JENIS: ESAI
+Pertanyaan: Jelaskan pengertian persamaan dasar akuntansi dan sebutkan tiga unsur utamanya!
+Kunci Jawaban: Persamaan dasar akuntansi adalah hubungan antara aset, liabilitas, dan ekuitas yang menunjukkan total aset sama dengan jumlah liabilitas dan ekuitas.
+Kata Kunci: aset, liabilitas, ekuitas, keseimbangan, persamaan akuntansi
+Jawaban Alternatif: Aset, utang, dan modal merupakan tiga unsur utama persamaan dasar akuntansi.
+Pembahasan: Persamaan dasar akuntansi menjadi dasar pencatatan transaksi keuangan dan menjaga keseimbangan pencatatan.
+
+SOAL CADANGAN UNTUK UTAMA-03
+CADANGAN-03-1 | JENIS: ESAI
+Pertanyaan: Jelaskan perbedaan antara aset dan liabilitas dalam akuntansi!
+Kunci Jawaban: Aset merupakan sumber daya ekonomi perusahaan, sedangkan liabilitas merupakan kewajiban atau utang perusahaan kepada pihak lain.
+Kata Kunci: aset, sumber daya, liabilitas, kewajiban, utang
+Pembahasan: Aset memberikan manfaat ekonomi, sedangkan liabilitas merupakan kewajiban yang harus diselesaikan.
+
+(lanjutkan CADANGAN-03-2 dan CADANGAN-03-3 dengan format yang sama)`,
+  },
+};
+
+const FORMAT_RULES = [
+  'Setiap soal utama memiliki tepat 3 soal cadangan, dengan jenis yang sama seperti soal utamanya.',
+  'ID cadangan (misalnya CADANGAN-01-1) menghubungkan soal cadangan dengan soal utama (UTAMA-01).',
+  'Setiap soal wajib memiliki kunci jawaban dan pembahasan.',
+  'Soal esai wajib memiliki kata kunci dan jawaban alternatif.',
+];
+
 interface QuizCreatorModalProps {
   onSaveQuiz: (quiz: QuizPack) => void;
   onClose: () => void;
@@ -31,6 +105,7 @@ export const QuizCreatorModal: React.FC<QuizCreatorModalProps> = ({
   onClose,
 }) => {
   const [activeTab, setActiveTab] = useState<'manual' | 'import'>('manual');
+  const [formatExample, setFormatExample] = useState<FormatExampleKey>('multiple');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('Sains');
@@ -476,6 +551,60 @@ Pembahasan: Gedung pencakar langit dapat tersambar petir puluhan kali setiap tah
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Contoh Format Soal untuk Import PDF */}
+            <div className="rounded-2xl border border-pink-100 bg-white p-3.5 sm:p-4">
+              <div className="flex items-start gap-2.5">
+                <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-pink-100 text-pink-600">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <h4 className="text-xs font-extrabold text-slate-800">
+                    Contoh Format Soal untuk Import PDF
+                  </h4>
+                  <p className="mt-0.5 text-[11px] text-slate-500">
+                    Susun dokumen seperti contoh di bawah agar soal, kunci jawaban, dan pembahasan terbaca dengan benar.
+                  </p>
+                </div>
+              </div>
+
+              <p className="mt-3 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                Awal dokumen
+              </p>
+              <pre className="mt-1 whitespace-pre-wrap rounded-xl border border-pink-100 bg-pink-50/60 p-3 font-mono text-[11px] leading-relaxed text-slate-700">
+                {FORMAT_HEADER}
+              </pre>
+
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {(Object.keys(FORMAT_EXAMPLES) as FormatExampleKey[]).map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setFormatExample(key)}
+                    className={`cursor-pointer rounded-lg px-3 py-1.5 text-[11px] font-bold transition ${
+                      formatExample === key
+                        ? 'bg-pink-500 text-white shadow-sm shadow-pink-200'
+                        : 'bg-pink-50 text-pink-700 hover:bg-pink-100'
+                    }`}
+                  >
+                    {FORMAT_EXAMPLES[key].label}
+                  </button>
+                ))}
+              </div>
+
+              <pre className="mt-2 max-h-56 overflow-y-auto whitespace-pre-wrap rounded-xl border border-pink-100 bg-pink-50/60 p-3 font-mono text-[11px] leading-relaxed text-slate-700">
+                {FORMAT_EXAMPLES[formatExample].text}
+              </pre>
+
+              <ul className="mt-3 space-y-1">
+                {FORMAT_RULES.map((rule) => (
+                  <li key={rule} className="flex items-start gap-1.5 text-[11px] text-slate-600">
+                    <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-pink-500" />
+                    <span>{rule}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
             {/* AI Toggle */}
