@@ -1,7 +1,9 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { QRCodeSVG } from 'qrcode.react';
 import { GameRoom, Player, Question } from '../types/game';
-import { Volume2, VolumeX, Flame, Trophy, Copy, Check, Sparkles, LogOut } from 'lucide-react';
+import { Volume2, VolumeX, Flame, Trophy, Copy, Check, Sparkles, LogOut, QrCode } from 'lucide-react';
+import { buildJoinUrl } from '../utils/roomQr';
 
 interface HUDProps {
   room: GameRoom;
@@ -25,16 +27,21 @@ export const HUD: React.FC<HUDProps> = ({
 }) => {
   const [copied, setCopied] = React.useState(false);
   const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
+  const [showQr, setShowQr] = React.useState(false);
+  const [linkCopied, setLinkCopied] = React.useState(false);
 
-  // Tutup dialog konfirmasi dengan tombol Escape
+  // Tutup dialog (konfirmasi keluar / QR) dengan tombol Escape
   React.useEffect(() => {
-    if (!showLeaveConfirm) return;
+    if (!showLeaveConfirm && !showQr) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setShowLeaveConfirm(false);
+      if (e.key === 'Escape') {
+        setShowLeaveConfirm(false);
+        setShowQr(false);
+      }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [showLeaveConfirm]);
+  }, [showLeaveConfirm, showQr]);
 
   const handleConfirmLeave = () => {
     setShowLeaveConfirm(false);
@@ -50,6 +57,12 @@ export const HUD: React.FC<HUDProps> = ({
     navigator.clipboard.writeText(room.code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyJoinLink = () => {
+    navigator.clipboard.writeText(buildJoinUrl(room.code));
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
   };
 
   // Calculate player rank
@@ -93,9 +106,10 @@ export const HUD: React.FC<HUDProps> = ({
             isAdventure ? 'items-center justify-start sm:gap-2' : 'items-start justify-between sm:gap-3'
           }`}
         >
-          {/* Room Code Badge */}
+          {/* Room Code Badge + tombol QR */}
+          <div className="flex min-w-0 max-w-[min(66%,320px)] items-center gap-1.5 sm:gap-2">
           <div
-            className={`pointer-events-auto flex h-10 sm:h-11 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl shadow-xl backdrop-blur-md`}
+            className={`pointer-events-auto flex h-10 sm:h-11 min-w-0 flex-1 items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl shadow-xl backdrop-blur-md`}
           >
             <span className={`shrink-0 text-[9px] sm:text-[11px] font-semibold ${labelClass}`}>PIN</span>
             <span className={`min-w-0 truncate font-black ${pinClass} tracking-wide text-[10px] sm:text-sm`}>{room.code}</span>
@@ -106,6 +120,17 @@ export const HUD: React.FC<HUDProps> = ({
             >
               {copied ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
             </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setShowQr(true)}
+            aria-label="Tampilkan QR Code"
+            title="Tampilkan QR Code"
+            className={`pointer-events-auto flex h-10 w-10 sm:h-11 sm:w-11 shrink-0 items-center justify-center rounded-lg sm:rounded-xl border ${pillClass} shadow-xl backdrop-blur-md ${muteBtnClass} transition active:scale-95`}
+          >
+            <QrCode className="h-4 w-4 sm:h-5 sm:w-5" />
+          </button>
           </div>
 
           {/* Player Stats & Rank */}
@@ -310,6 +335,65 @@ export const HUD: React.FC<HUDProps> = ({
                 className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-rose-500 active:scale-95"
               >
                 {isHost ? 'Keluar' : 'Keluar'}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* DIALOG QR CODE ROOM */}
+      {showQr && createPortal(
+        <div
+          className="pointer-events-auto fixed inset-0 z-[1000] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setShowQr(false)}
+        >
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="room-qr-title"
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-xs rounded-2xl border p-5 text-center shadow-2xl ${
+              isAdventure ? 'border-pink-200 bg-white' : 'border-slate-700 bg-slate-900'
+            }`}
+          >
+            <h3
+              id="room-qr-title"
+              className={`text-base font-extrabold ${isAdventure ? 'text-slate-800' : 'text-white'}`}
+            >
+              Scan untuk Bergabung
+            </h3>
+            <p className={`mt-1 text-xs ${isAdventure ? 'text-slate-500' : 'text-slate-400'}`}>
+              Arahkan kamera ke QR code ini, atau masukkan PIN secara manual.
+            </p>
+
+            <div className="mx-auto mt-4 w-fit rounded-2xl bg-white p-3 shadow-md ring-1 ring-pink-100">
+              <QRCodeSVG value={buildJoinUrl(room.code)} size={208} level="M" fgColor="#9d174d" bgColor="#ffffff" />
+            </div>
+
+            <p className={`mt-4 text-[10px] font-bold uppercase tracking-wider ${labelClass}`}>PIN Room</p>
+            <p className={`text-2xl font-black tracking-[0.3em] ${pinClass}`}>{room.code}</p>
+
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={handleCopyJoinLink}
+                className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition active:scale-95 ${
+                  isAdventure
+                    ? 'border-pink-200 bg-pink-50 text-pink-600 hover:bg-pink-100'
+                    : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                }`}
+              >
+                {linkCopied ? <Check className="h-4 w-4 text-emerald-500" /> : <Copy className="h-4 w-4" />}
+                {linkCopied ? 'Tersalin' : 'Salin Tautan'}
+              </button>
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowQr(false)}
+                className="flex-1 rounded-xl bg-pink-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-pink-700 active:scale-95"
+              >
+                Tutup
               </button>
             </div>
           </div>

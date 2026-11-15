@@ -10,7 +10,10 @@ import {
   Check,
   Map,
   Trash2,
+  QrCode,
 } from 'lucide-react';
+import { QrScannerModal } from './QrScannerModal';
+import { clearPinFromLocation, readPinFromLocation } from '../utils/roomQr';
 
 interface LobbyViewProps {
   userRole: 'teacher' | 'student';
@@ -40,6 +43,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
   const [selectedPackId, setSelectedPackId] = useState('');
   const [selectedMode] = useState<GameMode>('adventure');
   const [joinError, setJoinError] = useState('');
+  const [showScanner, setShowScanner] = useState(false);
 
   const selectedPack = quizPacks.find(
     (pack) => pack.id === selectedPackId
@@ -50,6 +54,23 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       setSelectedPackId('');
     }
   }, [quizPacks, selectedPackId]);
+
+  // Siswa membuka QR lewat kamera HP (…/?pin=123456): isi PIN otomatis
+  useEffect(() => {
+    if (userRole !== 'student') return;
+
+    const pin = readPinFromLocation();
+    if (pin) setPinInput(pin);
+  }, [userRole]);
+
+  // QR berhasil dipindai lewat kamera di dalam aplikasi: langsung bergabung
+  const handleQrDetected = (pin: string) => {
+    setShowScanner(false);
+    setPinInput(pin);
+    setJoinError('');
+    clearPinFromLocation();
+    onJoinGame(pin, playerName || 'Pemain');
+  };
 
   const handleJoinSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +83,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
     }
 
     setJoinError('');
+    clearPinFromLocation();
     onJoinGame(cleanPin, playerName || 'Pemain');
   };
 
@@ -164,17 +186,28 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
                   )}
 
                   <p className="text-[11px] text-slate-400 mt-2">
-                    PIN diberikan oleh guru atau pembuat room.
+                    PIN atau QR code diberikan oleh guru atau pembuat room.
                   </p>
                 </div>
 
-                <button
-                  type="submit"
-                  className="w-full sm:w-auto sm:min-w-48 flex items-center justify-center gap-2 px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 active:scale-[0.98]"
-                >
-                  Gabung Sekarang
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <button
+                    type="submit"
+                    className="w-full sm:w-auto sm:min-w-48 flex items-center justify-center gap-2 px-6 py-3 bg-pink-600 hover:bg-pink-700 text-white text-sm font-semibold rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 active:scale-[0.98]"
+                  >
+                    Gabung Sekarang
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowScanner(true)}
+                    className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 bg-white hover:bg-pink-50 text-pink-600 text-sm font-semibold rounded-xl border border-pink-200 transition-colors focus:outline-none focus:ring-2 focus:ring-pink-300 focus:ring-offset-2 active:scale-[0.98]"
+                  >
+                    <QrCode className="w-4 h-4" />
+                    Scan QR
+                  </button>
+                </div>
               </form>
             </div>
 
@@ -464,6 +497,12 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           <span>Platform Kuis Edukasi Interaktif</span>
         </footer>
       </div>
+      {showScanner && (
+        <QrScannerModal
+          onDetected={handleQrDetected}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </main>
   );
 };
