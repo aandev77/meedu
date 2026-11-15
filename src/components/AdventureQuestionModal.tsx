@@ -179,7 +179,7 @@ export const AdventureQuestionModal: React.FC<AdventureQuestionModalProps> = ({
           <div className="py-2 text-center sm:py-4">
             {isCorrect ? (
               <>
-                <h2 className="mb-1 text-xl font-extrabold text-emerald-600 sm:text-2xl">
+                <h2 className="mb-1 text-xl font-extrabold text-pink-600 sm:text-2xl">
                   JAWABAN KAMU BENAR!
                 </h2>
                 <p className="mb-4 text-sm text-slate-500">
