@@ -326,6 +326,31 @@ useEffect(() => {
         return;
       }
 
+      // Guru mengakhiri room: murid otomatis dikeluarkan
+      if ((room.stage as string) === 'ended') {
+        const myUid = auth.currentUser?.uid;
+
+        if (room.hostId !== myUid) {
+          clearSession();
+
+          if (myUid) {
+            try {
+              localStorage.removeItem(progressStorageKey(roomCode, myUid));
+            } catch {
+              // abaikan
+            }
+          }
+
+          setCurrentRoom(null);
+          setIsMapTest(false);
+          setIsLocalRoom(false);
+          resetAdventureProgress();
+          notify('Guru telah mengakhiri room.');
+        }
+
+        return;
+      }
+
       setCurrentRoom((prev) => {
         if (!prev || prev.code !== roomCode) return prev;
 
@@ -470,7 +495,7 @@ useEffect(() => {
       try {
         const room = await getRoom(saved.code);
 
-        if (!room) {
+        if (!room || (room.stage as string) === 'ended') {
           clearSession();
           return;
         }
@@ -855,6 +880,27 @@ useEffect(() => {
     setIsMapTest(false);
     setIsLocalRoom(false);
     resetAdventureProgress();
+  };
+
+  // Guru mengakhiri room: tandai room selesai di Firestore agar semua murid
+  // otomatis keluar (lihat subscribeRoom di atas), lalu guru sendiri keluar.
+  const handleEndRoom = async () => {
+    if (!currentRoom) return;
+
+    // Sesi lokal (Tes Peta / Quick Play) tidak ada di Firestore
+    if (!isLocalRoom && isRoomHost) {
+      try {
+        // Catatan: tambahkan 'ended' ke tipe stage di types/game.ts,
+        // lalu hapus cast `as never` di bawah.
+        await updateRoom(currentRoom.code, { stage: 'ended' } as never);
+      } catch (error) {
+        console.error('Gagal mengakhiri room:', error);
+        notify('Gagal mengakhiri room. Periksa koneksi Firestore.');
+        return;
+      }
+    }
+
+    handleLeaveRoom();
   };
 
   // Simpan perubahan nama pemain
@@ -1958,6 +2004,7 @@ useEffect(() => {
               room={currentRoom}
               currentPlayer={currentPlayer}
               onLeaveRoom={handleLeaveRoom}
+              onEndRoom={handleEndRoom}
               isHost={isRoomHost}
               isMuted={isMuted}
               onToggleMute={handleToggleMute}

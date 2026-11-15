@@ -6,6 +6,8 @@ interface HUDProps {
   room: GameRoom;
   currentPlayer: Player;
   onLeaveRoom: () => void;
+  /** Dipanggil saat guru (host) mengonfirmasi mengakhiri room. Jika tidak diberikan, memakai onLeaveRoom. */
+  onEndRoom?: () => void;
   isHost?: boolean;
   isMuted: boolean;
   onToggleMute: () => void;
@@ -15,10 +17,32 @@ export const HUD: React.FC<HUDProps> = ({
   room,
   currentPlayer,
   onLeaveRoom,
+  onEndRoom,
+  isHost = false,
   isMuted,
   onToggleMute,
 }) => {
   const [copied, setCopied] = React.useState(false);
+  const [showLeaveConfirm, setShowLeaveConfirm] = React.useState(false);
+
+  // Tutup dialog konfirmasi dengan tombol Escape
+  React.useEffect(() => {
+    if (!showLeaveConfirm) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setShowLeaveConfirm(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [showLeaveConfirm]);
+
+  const handleConfirmLeave = () => {
+    setShowLeaveConfirm(false);
+    if (isHost) {
+      (onEndRoom ?? onLeaveRoom)();
+    } else {
+      onLeaveRoom();
+    }
+  };
   const currentQuestion: Question | undefined = room.quizPack.questions[room.currentQuestionIndex];
 
   const handleCopyPin = () => {
@@ -125,13 +149,13 @@ export const HUD: React.FC<HUDProps> = ({
               </button>
               <button
                 type="button"
-                onClick={onLeaveRoom}
-                aria-label="Logout"
-                title="Logout"
+                onClick={() => setShowLeaveConfirm(true)}
+                aria-label={isHost ? 'Akhiri Room' : 'Logout'}
+                title={isHost ? 'Akhiri Room' : 'Logout'}
                 className={`flex h-10 w-10 sm:h-9 sm:w-auto items-center justify-center gap-1.5 rounded-lg sm:rounded-xl border border-rose-200 bg-white px-0 sm:px-3 text-[10px] sm:text-xs font-bold ${leaveBtnClass} shadow-xl transition active:scale-95`}
               >
                 <LogOut className="h-4 w-4" />
-                <span className="hidden sm:inline">Logout</span>
+                <span className="hidden sm:inline">{isHost ? 'Akhiri' : 'Logout'}</span>
               </button>
             </div>
           </div>
@@ -229,6 +253,67 @@ export const HUD: React.FC<HUDProps> = ({
         )}
       </div>
 
+      {/* DIALOG KONFIRMASI KELUAR / AKHIRI ROOM */}
+      {showLeaveConfirm && (
+        <div
+          className="pointer-events-auto absolute inset-0 z-50 flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
+          onClick={() => setShowLeaveConfirm(false)}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="leave-confirm-title"
+            aria-describedby="leave-confirm-desc"
+            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-sm rounded-2xl border p-5 text-center shadow-2xl ${
+              isAdventure ? 'border-pink-200 bg-white' : 'border-slate-700 bg-slate-900'
+            }`}
+          >
+            <div
+              className={`mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full ${
+                isAdventure ? 'bg-rose-100 text-rose-600' : 'bg-rose-500/15 text-rose-400'
+              }`}
+            >
+              <LogOut className="h-6 w-6" />
+            </div>
+            <h3
+              id="leave-confirm-title"
+              className={`text-base font-extrabold ${isAdventure ? 'text-slate-800' : 'text-white'}`}
+            >
+              {isHost ? 'Akhiri room ini?' : 'Keluar dari room?'}
+            </h3>
+            <p
+              id="leave-confirm-desc"
+              className={`mt-1.5 text-sm leading-relaxed ${isAdventure ? 'text-slate-500' : 'text-slate-400'}`}
+            >
+              {isHost
+                ? 'Room akan ditutup untuk semua murid dan permainan berhenti. Tindakan ini tidak bisa dibatalkan.'
+                : 'Kamu akan meninggalkan permainan ini. Kamu bisa bergabung lagi dengan PIN yang sama jika room masih berjalan.'}
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => setShowLeaveConfirm(false)}
+                className={`flex-1 rounded-xl border px-3 py-2 text-sm font-bold transition active:scale-95 ${
+                  isAdventure
+                    ? 'border-pink-200 bg-pink-50 text-pink-600 hover:bg-pink-100'
+                    : 'border-slate-600 bg-slate-800 text-slate-200 hover:bg-slate-700'
+                }`}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                onClick={handleConfirmLeave}
+                className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-rose-500 active:scale-95"
+              >
+                {isHost ? 'Akhiri room' : 'Keluar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
