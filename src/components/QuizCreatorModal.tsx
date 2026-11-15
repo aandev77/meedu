@@ -399,8 +399,6 @@ Pembahasan: Gedung pencakar langit dapat tersambar petir puluhan kali setiap tah
         {/* Top Header */}
         <div className="flex items-start justify-between gap-3 pb-4 border-b border-pink-100">
           <div className="flex min-w-0 items-start gap-2 sm:gap-3">
-            <div className="w-8 h-8 rounded-xl bg-pink-100 text-pink-600 flex items-center justify-center font-bold">
-            </div>
             <div>
               <h2 className="text-lg sm:text-xl font-bold leading-snug text-slate-800">
                 Pembuat & Import Kuis Meedu
