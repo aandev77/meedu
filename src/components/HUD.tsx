@@ -155,6 +155,7 @@ export const HUD: React.FC<HUDProps> = ({
                 title={isHost ? 'Akhiri Room' : 'Logout'}
                 className={`flex h-10 w-10 sm:h-9 sm:w-auto items-center justify-center gap-1.5 rounded-lg sm:rounded-xl border border-rose-200 bg-white px-0 sm:px-3 text-[10px] sm:text-xs font-bold ${leaveBtnClass} shadow-xl transition active:scale-95`}
               >
+                <LogOut className="h-4 w-4" />
               </button>
             </div>
           </div>
