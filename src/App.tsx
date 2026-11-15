@@ -193,6 +193,8 @@ export default function App() {
   const [wrongAttempts, setWrongAttempts] = useState(0);
   const [timeLeft, setTimeLeft] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  // Apakah jawaban terakhir benar (menentukan tampilan pembahasan di modal)
+  const [lastAnswerCorrect, setLastAnswerCorrect] = useState(false);
   const [chestCompleted, setChestCompleted] = useState<number[]>([]);
   const [chestScores, setChestScores] = useState<Record<number, number>>({});
   const [adventureAnswerHistory, setAdventureAnswerHistory] = useState<AdventureAnswerRecord[]>([]);
@@ -745,6 +747,8 @@ useEffect(() => {
     }
 
 
+    setLastAnswerCorrect(isCorrect);
+
     // Simpan riwayat jawaban pemain
     setAdventureAnswerHistory((previous) => [
       ...previous,
@@ -778,9 +782,8 @@ useEffect(() => {
           : [...previous, activeChest]
       );
 
-      setShowAnswer(false);
-      setIsQuestionOpen(false);
-      setActiveChest(null);
+      // Tampilkan pembahasan dulu; modal ditutup saat siswa menekan "Lanjutkan".
+      setShowAnswer(true);
 
       return;
     }
@@ -832,6 +835,7 @@ useEffect(() => {
   // Melanjutkan permainan setelah jawaban ditampilkan
   const handleContinueAdventure = () => {
     setShowAnswer(false);
+    setLastAnswerCorrect(false);
     setIsQuestionOpen(false);
     setActiveChest(null);
     setActiveQuestionIndex(0);
@@ -2069,6 +2073,7 @@ useEffect(() => {
                   setTimeLeft={setTimeLeft}
                   isOpen={isQuestionOpen}
                   showAnswer={showAnswer}
+                  isCorrect={lastAnswerCorrect}
                   onAnswer={handleAdventureAnswer}
                   onClose={() => setIsQuestionOpen(false)}
                   onContinue={handleContinueAdventure}
