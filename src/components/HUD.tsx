@@ -89,13 +89,13 @@ export const HUD: React.FC<HUDProps> = ({
       >
         {/* Top Info Bar */}
         <div
-          className={`flex flex-wrap gap-1.5 sm:gap-3 ${
-            isAdventure ? 'items-center justify-start' : 'items-start justify-between'
+          className={`flex flex-wrap gap-1.5 ${
+            isAdventure ? 'items-center justify-start sm:gap-2' : 'items-start justify-between sm:gap-3'
           }`}
         >
           {/* Room Code Badge */}
           <div
-            className={`pointer-events-auto flex h-10 sm:h-9 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl sm:rounded-2xl shadow-xl backdrop-blur-md`}
+            className={`pointer-events-auto flex h-10 sm:h-11 min-w-0 max-w-[min(58%,260px)] items-center gap-1 sm:gap-2 ${pillClass} border px-2 sm:px-3.5 rounded-xl shadow-xl backdrop-blur-md`}
           >
             <span className={`shrink-0 text-[9px] sm:text-[11px] font-semibold ${labelClass}`}>PIN</span>
             <span className={`min-w-0 truncate font-black ${pinClass} tracking-wide text-[10px] sm:text-sm`}>{room.code}</span>
@@ -142,20 +142,20 @@ export const HUD: React.FC<HUDProps> = ({
                 onClick={onToggleMute}
                 aria-label={isMuted ? 'Nyalakan Suara' : 'Matikan Suara'}
                 title={isMuted ? 'Nyalakan Suara' : 'Matikan Suara'}
-                className={`flex h-10 w-10 sm:h-9 sm:w-9 items-center justify-center rounded-lg sm:rounded-xl border ${pillClass} shadow-xl backdrop-blur-md ${muteBtnClass} transition active:scale-95`}
+                className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg sm:rounded-xl border ${pillClass} shadow-xl backdrop-blur-md ${muteBtnClass} transition active:scale-95`}
               >
                 {isMuted
-                  ? <VolumeX className="h-4 w-4 text-red-400" />
-                  : <Volume2 className={`h-4 w-4 ${isAdventure ? 'text-pink-500' : 'text-emerald-400'}`} />}
+                  ? <VolumeX className="h-4 w-4 sm:h-5 sm:w-5 text-red-400" />
+                  : <Volume2 className={`h-4 w-4 sm:h-5 sm:w-5 ${isAdventure ? 'text-pink-500' : 'text-emerald-400'}`} />}
               </button>
               <button
                 type="button"
                 onClick={() => setShowLeaveConfirm(true)}
                 aria-label={isHost ? 'Akhiri Room' : 'Logout'}
                 title={isHost ? 'Akhiri Room' : 'Logout'}
-                className={`flex h-10 w-10 sm:h-9 sm:w-auto items-center justify-center gap-1.5 rounded-lg sm:rounded-xl border border-rose-200 bg-white px-0 sm:px-3 text-[10px] sm:text-xs font-bold ${leaveBtnClass} shadow-xl transition active:scale-95`}
+                className={`flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-lg sm:rounded-xl border border-rose-200 bg-white ${leaveBtnClass} shadow-xl transition active:scale-95`}
               >
-                <LogOut className="h-4 w-4" />
+                <LogOut className="h-4 w-4 sm:h-5 sm:w-5" />
               </button>
             </div>
           </div>
@@ -288,8 +288,8 @@ export const HUD: React.FC<HUDProps> = ({
               className={`mt-1.5 text-sm leading-relaxed ${isAdventure ? 'text-slate-500' : 'text-slate-400'}`}
             >
               {isHost
-                ? 'Room akan ditutup untuk semua murid dan permainan berhenti.'
-                : 'Kamu akan meninggalkan permainan ini.'}
+                ? 'Room akan ditutup untuk semua murid dan permainan berhenti. Tindakan ini tidak bisa dibatalkan.'
+                : 'Kamu akan meninggalkan permainan ini. Kamu bisa bergabung lagi dengan PIN yang sama jika room masih berjalan.'}
             </p>
             <div className="mt-4 flex gap-2">
               <button
@@ -309,7 +309,7 @@ export const HUD: React.FC<HUDProps> = ({
                 onClick={handleConfirmLeave}
                 className="flex-1 rounded-xl bg-rose-600 px-3 py-2 text-sm font-bold text-white transition hover:bg-rose-500 active:scale-95"
               >
-                {isHost ? 'Keluar' : 'Keluar'}
+                {isHost ? 'Akhiri room' : 'Keluar'}
               </button>
             </div>
           </div>

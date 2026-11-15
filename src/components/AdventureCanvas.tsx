@@ -851,11 +851,12 @@ export const AdventureCanvas: React.FC<AdventureCanvasProps> = ({
       const isMobileViewport = viewWidth < 700;
       // Guru di desktop melihat seluruh peta. Di HP gunakan mode cover agar
       // peta cukup besar, lalu kamera dapat digeser horizontal dengan jari.
-      const spectatorScale = isSpectator
-        ? (isMobileViewport
-            ? Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height)
-            : Math.min(viewWidth / WORLD.width, viewHeight / WORLD.height))
-        : Math.max(viewWidth / WORLD.width, viewHeight / WORLD.height);
+      // Mode cover juga di desktop: peta selalu memenuhi seluruh kanvas (tanpa celah
+      // hijau di sisi kanan). Bila rasio layar berbeda, tepi atas/bawah sedikit terpotong.
+      const spectatorScale = Math.max(
+        viewWidth / WORLD.width,
+        viewHeight / WORLD.height
+      );
       const scale = isSpectator ? spectatorScale : spectatorScale * 1.1;
       scaleRef.current = scale;
 
