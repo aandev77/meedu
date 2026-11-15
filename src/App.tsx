@@ -32,6 +32,7 @@ import { AdventureQuestionModal } from './components/AdventureQuestionModal';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from './firebase';
 import { LoginView } from './components/LoginView';
+import { SplashScreen } from './components/SplashScreen';
 import Toast from './utils/toast';
 import {
   createRoom,
@@ -129,6 +130,8 @@ const progressStorageKey = (code: string, uid: string) =>
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
+  // Animasi pembuka ditampilkan sekali sebelum form login
+  const [splashDone, setSplashDone] = useState(false);
   const [serverRole, setServerRole] = useState<'teacher' | 'student'>('student');
 
   // Active Game Room
@@ -1925,6 +1928,10 @@ useEffect(() => {
   }
 
   if (!user) {
+    if (!splashDone) {
+      return <SplashScreen onFinish={() => setSplashDone(true)} />;
+    }
+
     return <LoginView />;
   }
 
