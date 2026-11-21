@@ -199,6 +199,13 @@ export const AdventureQuestionModal: React.FC<AdventureQuestionModalProps> = ({
             <p className="mb-5 whitespace-pre-wrap text-lg font-bold text-red-600 sm:text-xl">
               {getCorrectAnswer()}
             </p>
+            <p
+              className={`mb-5 whitespace-pre-wrap text-lg font-bold sm:text-xl ${
+                isCorrect ? 'text-[#16a34a]' : 'text-[#dc2626]'
+              }`}
+            >
+              {getCorrectAnswer()}
+            </p>
 
             <div className="mb-5 rounded-xl border border-pink-100 bg-pink-50 p-4 text-left sm:mb-6">
               <p className="mb-2 font-bold text-pink-700">
