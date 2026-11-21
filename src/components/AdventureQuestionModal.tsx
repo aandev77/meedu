@@ -195,10 +195,6 @@ export const AdventureQuestionModal: React.FC<AdventureQuestionModalProps> = ({
             <p className="mb-3 text-slate-500">
               Jawaban yang benar:
             </p>
-
-            <p className="mb-5 whitespace-pre-wrap text-lg font-bold text-red-600 sm:text-xl">
-              {getCorrectAnswer()}
-            </p>
             <p
               className={`mb-5 whitespace-pre-wrap text-lg font-bold sm:text-xl ${
                 isCorrect ? 'text-[#16a34a]' : 'text-[#dc2626]'
