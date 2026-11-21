@@ -187,8 +187,8 @@ export const AdventureQuestionModal: React.FC<AdventureQuestionModalProps> = ({
                 </p>
               </>
             ) : (
-              <h2 className="mb-4 text-xl font-extrabold text-pink-600 sm:text-2xl">
-                BELAJAR LEBIH GIAT LAGI YAAAAA
+              <h2 className="mb-4 text-xl font-extrabold text-red-600 sm:text-2xl">
+                YAAAH MAAF JAWABAN KAMU SALAH, BELAJAR LAGI YUKKK
               </h2>
             )}
 
