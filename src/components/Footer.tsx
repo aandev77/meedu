@@ -273,14 +273,6 @@ export default function Footer() {
                     allowFullScreen
                   />
                 </div>
-                <a
-                  href={MAP_LINK}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-3 text-sm font-medium text-pink-700 hover:underline"
-                >
-                  Buka di Google Maps ↗
-                </a>
               </>
             ) : (
               <a
