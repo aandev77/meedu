@@ -497,7 +497,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
             © 2026 Meedu Quiz. Hak cipta dilindungi.
           </p>
           <p>
-            Dibuat oleh Lutfi Amelia, Neng Riska Amelia, dan Parhan Aan Hasbulloh.
+            Dibuat oleh Lutfi Amelia, Neng Riska Amelia, dan Farhan Aan Hasbulloh.
           </p>
           <p className="text-[11px] text-slate-400">
             Platform Kuis Edukasi Interaktif
