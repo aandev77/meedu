@@ -177,7 +177,9 @@ function OsmMap() {
       "Fakultas Ekonomi dan Bisnis, Universitas Jenderal Soedirman"
     );
 
-    return () => map.remove();
+        return () => {
+      void map.remove();
+    };
   }, []);
 
   return <div ref={mapElement} className="h-full w-full" aria-label="Peta lokasi dengan kontrol zoom" />;
