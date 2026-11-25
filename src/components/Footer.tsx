@@ -1,4 +1,7 @@
-import { GraduationCap, Heart, MapPin } from "lucide-react";
+import { GraduationCap, Heart } from "lucide-react";
+import { useEffect, useRef } from "react";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
 
 const TEAM = ["Lutfi Amelia", "Neng Riska Amelia", "Farhan Aan Hasbulloh"];
 const MAP_QUERY =
@@ -7,14 +10,12 @@ const MAP_QUERY =
 // Cara paling aman: buka Google Maps > cari lokasi > Bagikan > Sematkan peta,
 // lalu salin isi src="..." dari kode iframe ke sini. Kalau dikosongkan, dipakai URL otomatis.
 const MAP_EMBED_URL =
-  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3956.5477223074186!2d109.24410767553303!3d-7.404464072912858!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e655ee52cb7022f%3A0x994e8ea777fc5759!2sFakultas%20Ekonomi%20dan%20Bisnis%20(FEB)%20-%20Unsoed!5e0!3m2!1sid!2sid!4v1795623892371!5m2!1sid!2sid";
+  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d12000!2d109.24410767553303!3d-7.404464072912858!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e655ee52cb7022f%3A0x994e8ea777fc5759!2sFakultas%20Ekonomi%20dan%20Bisnis%20(FEB)%20-%20Unsoed!5e0!3m2!1sid!2sid!4v1795623892371!5m2!1sid!2sid";
 const MAP_LINK = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAP_QUERY)}`;
 // true = tampilkan peta embed (perlu situs yang mengizinkan iframe Google).
 // false = tampilkan kartu lokasi yang selalu tampil dan membuka Google Maps saat diklik.
-const USE_EMBED = true;
 // Pakai kode embed resmi Google Maps, tipe peta diganti ke satelit (!5e0 -> !5e1).
-// Bisa digeser dan di-zoom in/out.
-const MAP_SRC = MAP_EMBED_URL.replace("!5e0", "!5e1");
+// Peta memakai embed Google Maps standar dengan kontrol zoom bawaan.
 
 /* Pixel cow: dibuat dari kotak-kotak kecil, menghadap kanan */
 interface CowProps {
@@ -140,58 +141,46 @@ function PixelFarm() {
   );
 }
 
-/* Peta satelit dari tile Esri World Imagery (pakai <img>, bukan iframe) */
+/* Peta interaktif Leaflet dengan kontrol zoom + / - */
 const LAT = -7.404464;
 const LON = 109.244108;
-const ZOOM = 17;
+
 function OsmMap() {
-  const n = 2 ** ZOOM;
-  const xf = ((LON + 180) / 360) * n;
-  const r = (LAT * Math.PI) / 180;
-  const yf = ((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2) * n;
-  const tx = Math.floor(xf);
-  const ty = Math.floor(yf);
-  const fx = xf - tx;
-  const fy = yf - ty;
-  const tiles: { dx: number; dy: number; src: string }[] = [];
-  for (let dy = -1; dy <= 1; dy++)
-    for (let dx = -2; dx <= 2; dx++)
-      tiles.push({
-        dx,
-        dy,
-        // Esri World Imagery: urutan URL-nya z/y/x (bukan z/x/y)
-        src: `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${ZOOM}/${ty + dy}/${tx + dx}`,
-      });
-  return (
-    <div
-      className="absolute transition-transform duration-500 group-hover:scale-105"
-      style={{
-        left: "50%",
-        top: "50%",
-        width: 1280,
-        height: 768,
-        marginLeft: -(2 + fx) * 256,
-        marginTop: -(1 + fy) * 256,
-        transformOrigin: `${(2 + fx) * 256}px ${(1 + fy) * 256}px`,
-      }}
-      aria-hidden="true"
-    >
-      {tiles.map((t) => (
-        <img
-          key={`${t.dx}${t.dy}`}
-          src={t.src}
-          alt=""
-          width={256}
-          height={256}
-          draggable={false}
-          loading="lazy"
-          className="absolute max-w-none select-none"
-          style={{ left: (t.dx + 2) * 256, top: (t.dy + 1) * 256 }}
-          onError={(e) => (e.currentTarget.style.display = "none")}
-        />
-      ))}
-    </div>
-  );
+  const mapElement = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!mapElement.current) return;
+
+    const map = L.map(mapElement.current, {
+      center: [LAT, LON],
+      zoom: 15,
+      zoomControl: true,
+      scrollWheelZoom: true,
+    });
+
+    // Citra satelit Esri
+    L.tileLayer(
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      {
+        attribution: "Tiles © Esri",
+        maxZoom: 19,
+      }
+    ).addTo(map);
+
+    // Label jalan/tempat di atas citra satelit
+    L.tileLayer(
+      "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+      { attribution: "", maxZoom: 19 }
+    ).addTo(map);
+
+    L.marker([LAT, LON]).addTo(map).bindPopup(
+      "Fakultas Ekonomi dan Bisnis, Universitas Jenderal Soedirman"
+    );
+
+    return () => map.remove();
+  }, []);
+
+  return <div ref={mapElement} className="h-full w-full" aria-label="Peta lokasi dengan kontrol zoom" />;
 }
 
 export default function Footer() {
@@ -261,61 +250,17 @@ export default function Footer() {
 
           {/* Kanan: kontak + copyright */}
           <div className="flex flex-col items-center md:items-end">
-            {USE_EMBED ? (
-              <>
-                <div className="relative z-10 h-44 w-full max-w-sm overflow-hidden rounded-xl border-2 border-white/80 bg-white/70 shadow-md md:max-w-none">
-                  <iframe
-                    title="Lokasi Meedu Quiz"
-                    src={MAP_SRC}
-                    className="h-full w-full border-0"
-                    loading="lazy"
-                    referrerPolicy="strict-origin-when-cross-origin"
-                    allowFullScreen
-                  />
-                </div>
-              </>
-            ) : (
-              <a
-                href={MAP_LINK}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="group relative z-10 block w-full max-w-sm overflow-hidden rounded-xl border-2 border-white/80 bg-white text-left shadow-md md:max-w-none"
-              >
-                <div className="relative overflow-hidden" style={{ height: 130, background: "#eae6dd" }}>
-                  {/* latar cadangan bila tile peta gagal dimuat */}
-                  <svg
-                    className="absolute inset-0 h-full w-full"
-                    viewBox="0 0 120 40"
-                    preserveAspectRatio="xMidYMid slice"
-                    shapeRendering="crispEdges"
-                    aria-hidden="true"
-                  >
-                    <rect width="120" height="40" fill="#eae6dd" />
-                    <rect x="0" y="17" width="120" height="5" fill="#fff" />
-                    <rect x="52" y="0" width="5" height="40" fill="#fff" />
-                    <rect x="8" y="24" width="30" height="12" fill="#cfe6c4" />
-                    <rect x="68" y="4" width="34" height="10" fill="#cfe6f2" />
-                  </svg>
-                  <OsmMap />
-                  <MapPin
-                    size={36}
-                    className="absolute fill-pink-600 text-white drop-shadow-md transition-transform duration-300 group-hover:-translate-y-1"
-                    style={{ left: "50%", top: "50%", marginLeft: -18, marginTop: -34 }}
-                  />
-                </div>
-                <div className="px-3 py-2">
-                  <p className="text-xs font-semibold leading-snug text-pink-900">
-                    Fakultas Ekonomi dan Bisnis, Universitas Jenderal Soedirman
-                  </p>
-                  <p className="text-xs leading-snug text-pink-800/80">
-                    Jl. Prof. DR. HR Boenyamin No.708, Purwokerto 53122
-                  </p>
-                  <div className="mt-1 flex items-center justify-between text-xs">
-                    <span className="text-slate-400">© Esri</span>
-                  </div>
-                </div>
-              </a>
-            )}
+            <div className="relative z-10 h-44 w-full max-w-sm overflow-hidden rounded-xl border-2 border-white/80 bg-white/70 shadow-md md:max-w-none">
+              <OsmMap />
+            </div>
+            <a
+              href={MAP_LINK}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="mt-2 text-xs font-medium text-pink-800 underline"
+            >
+              Buka di Google Maps
+            </a>
             <p className="mt-4 text-xs text-pink-900/80 md:text-right">
               © 2026 Meedu Quiz. Hak cipta dilindungi.
             </p>
