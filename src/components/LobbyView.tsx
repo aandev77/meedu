@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { QrScannerModal } from './QrScannerModal';
 import { clearPinFromLocation, readPinFromLocation } from '../utils/roomQr';
+import Footer from './Footer';
 
 interface LobbyViewProps {
   userRole: 'teacher' | 'student';
@@ -496,37 +497,7 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
       </div>
 
       {/* FOOTER */}
-      <footer className="bg-pink-100 border-t border-pink-200">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 flex flex-col items-center gap-3 text-center">
-          <div className="flex items-center gap-2.5">
-            <span className="w-8 h-8 rounded-xl bg-pink-600 text-white flex items-center justify-center shadow-sm">
-              <Brain className="w-4 h-4" />
-            </span>
-            <span className="text-base font-bold tracking-tight text-pink-700">
-              Meedu Quiz
-            </span>
-          </div>
-
-          <p className="text-xs text-pink-800">
-            Platform kuis edukasi interaktif
-          </p>
-
-          <p className="flex flex-wrap items-center justify-center gap-x-1.5 gap-y-1 text-xs text-pink-800">
-            <span>Dibuat dengan</span>
-            <Heart
-              className="w-3.5 h-3.5 fill-pink-500 text-pink-500"
-              aria-label="cinta"
-            />
-            <span>oleh Lutfi Amelia, Neng Riska Amelia, dan Farhan Aan Hasbulloh</span>
-          </p>
-
-          <div className="w-10 h-px bg-pink-300" aria-hidden="true" />
-
-          <p className="text-[11px] text-pink-700">
-            © 2026 Meedu Quiz. Hak cipta dilindungi.
-          </p>
-        </div>
-      </footer>
+      <Footer />
 
       {showScanner && (
         <QrScannerModal
