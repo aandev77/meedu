@@ -7,15 +7,7 @@ const TEAM = ["Lutfi Amelia", "Neng Riska Amelia", "Farhan Aan Hasbulloh"];
 const MAP_QUERY =
   "Fakultas Ekonomi dan Bisnis Universitas Jenderal Soedirman, Jl. Profesor DR. HR Boenyamin No.708, Purwokerto, Jawa Tengah 53122";
 
-// Cara paling aman: buka Google Maps > cari lokasi > Bagikan > Sematkan peta,
-// lalu salin isi src="..." dari kode iframe ke sini. Kalau dikosongkan, dipakai URL otomatis.
-const MAP_EMBED_URL =
-  "https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d12000!2d109.24410767553303!3d-7.404464072912858!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x2e655ee52cb7022f%3A0x994e8ea777fc5759!2sFakultas%20Ekonomi%20dan%20Bisnis%20(FEB)%20-%20Unsoed!5e0!3m2!1sid!2sid!4v1795623892371!5m2!1sid!2sid";
 const MAP_LINK = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(MAP_QUERY)}`;
-// true = tampilkan peta embed (perlu situs yang mengizinkan iframe Google).
-// false = tampilkan kartu lokasi yang selalu tampil dan membuka Google Maps saat diklik.
-// Pakai kode embed resmi Google Maps, tipe peta diganti ke satelit (!5e0 -> !5e1).
-// Peta memakai embed Google Maps standar dengan kontrol zoom bawaan.
 
 /* Pixel cow: dibuat dari kotak-kotak kecil, menghadap kanan */
 interface CowProps {
@@ -153,29 +145,16 @@ function OsmMap() {
 
     const map = L.map(mapElement.current, {
       center: [LAT, LON],
-      zoom: 15,
+      zoom: 17,
       zoomControl: true,
       scrollWheelZoom: true,
     });
 
-    // Peta jalan dengan label nama tempat, jalan, dan area sekitar.
-    // OpenStreetMap lebih sesuai untuk tampilan berlabel seperti peta navigasi.
-    // Lapisan utama: citra satelit
-L.tileLayer(
-  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {
-    attribution: "Tiles © Esri",
-    maxZoom: 19,
-  }
-).addTo(map);
-
-// Lapisan nama tempat di atas citra satelit
-L.tileLayer(
-  "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-  {
-    maxZoom: 19,
-  }
-).addTo(map);
+    // Google Maps Hybrid: citra satelit + nama jalan, bangunan & tempat
+    L.tileLayer("https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
+      attribution: "Map data ©2026 Google",
+      maxZoom: 20,
+    }).addTo(map);
 
     // Pin merah khusus untuk lokasi FEB Unsoed.
     const redPin = L.divIcon({
@@ -192,7 +171,6 @@ L.tileLayer(
         '<strong>Fakultas Ekonomi dan Bisnis</strong><br/>Universitas Jenderal Soedirman'
       );
 
-    // Bungkus dalam blok agar cleanup tidak mengembalikan objek L.Map.
     return () => {
       map.remove();
     };
