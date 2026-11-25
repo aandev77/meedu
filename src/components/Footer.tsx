@@ -160,10 +160,22 @@ function OsmMap() {
 
     // Peta jalan dengan label nama tempat, jalan, dan area sekitar.
     // OpenStreetMap lebih sesuai untuk tampilan berlabel seperti peta navigasi.
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-      maxZoom: 19,
-    }).addTo(map);
+    // Lapisan utama: citra satelit
+L.tileLayer(
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+  {
+    attribution: "Tiles © Esri",
+    maxZoom: 19,
+  }
+).addTo(map);
+
+// Lapisan nama tempat di atas citra satelit
+L.tileLayer(
+  "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
+  {
+    maxZoom: 19,
+  }
+).addTo(map);
 
     // Pin merah khusus untuk lokasi FEB Unsoed.
     const redPin = L.divIcon({
