@@ -319,9 +319,6 @@ export default function Footer() {
                     Jl. Prof. DR. HR Boenyamin No.708, Purwokerto 53122
                   </p>
                   <div className="mt-1 flex items-center justify-between text-xs">
-                    <span className="font-medium text-pink-600 group-hover:underline">
-                      Buka di Google Maps ↗
-                    </span>
                     <span className="text-slate-400">© Esri</span>
                   </div>
                 </div>
