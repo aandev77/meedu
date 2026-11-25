@@ -158,27 +158,31 @@ function OsmMap() {
       scrollWheelZoom: true,
     });
 
-    // Citra satelit Esri
-    L.tileLayer(
-      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-      {
-        attribution: "Tiles © Esri",
-        maxZoom: 19,
-      }
-    ).addTo(map);
+    // Peta jalan dengan label nama tempat, jalan, dan area sekitar.
+    // OpenStreetMap lebih sesuai untuk tampilan berlabel seperti peta navigasi.
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map);
 
-    // Label jalan/tempat di atas citra satelit
-    L.tileLayer(
-      "https://services.arcgisonline.com/ArcGIS/rest/services/Reference/World_Boundaries_and_Places/MapServer/tile/{z}/{y}/{x}",
-      { attribution: "", maxZoom: 19 }
-    ).addTo(map);
+    // Pin merah khusus untuk lokasi FEB Unsoed.
+    const redPin = L.divIcon({
+      className: "meedu-red-map-pin",
+      html: `<div style="width:22px;height:22px;background:#e53935;border:3px solid white;border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 6px #0006;position:relative"><span style="position:absolute;width:6px;height:6px;background:white;border-radius:50%;top:5px;left:5px"></span></div>`,
+      iconSize: [28, 32],
+      iconAnchor: [14, 30],
+      popupAnchor: [0, -28],
+    });
 
-    L.marker([LAT, LON]).addTo(map).bindPopup(
-      "Fakultas Ekonomi dan Bisnis, Universitas Jenderal Soedirman"
-    );
+    L.marker([LAT, LON], { icon: redPin })
+      .addTo(map)
+      .bindPopup(
+        '<strong>Fakultas Ekonomi dan Bisnis</strong><br/>Universitas Jenderal Soedirman'
+      );
 
-        return () => {
-      void map.remove();
+    // Bungkus dalam blok agar cleanup tidak mengembalikan objek L.Map.
+    return () => {
+      map.remove();
     };
   }, []);
 
