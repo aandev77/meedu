@@ -492,9 +492,16 @@ export const LobbyView: React.FC<LobbyViewProps> = ({
           </div>
         </section>
 
-        <footer className="pt-5 border-t border-pink-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-[11px] text-slate-400">
-          <span>© 2026 Meedu Quiz</span>
-          <span>Platform Kuis Edukasi Interaktif</span>
+        <footer className="mt-8 pt-6 pb-4 border-t border-pink-100 flex flex-col items-center gap-2 text-center text-xs text-slate-500">
+          <p className="font-medium text-slate-600">
+            © 2026 Meedu Quiz. Hak cipta dilindungi.
+          </p>
+          <p>
+            Dibuat oleh Lutfi Amelia, Neng Riska Amelia, dan Parhan Aan Hasbulloh.
+          </p>
+          <p className="text-[11px] text-slate-400">
+            Platform Kuis Edukasi Interaktif
+          </p>
         </footer>
       </div>
       {showScanner && (
